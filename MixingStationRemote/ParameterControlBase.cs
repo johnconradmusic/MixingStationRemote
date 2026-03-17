@@ -8,168 +8,218 @@ namespace MixingStationRemote;
 
 public abstract class ParameterControlBase : UserControl
 {
-	public static readonly DependencyProperty ParameterProperty =
-		DependencyProperty.Register(
-			nameof(Parameter),
-			typeof(Parameter),
-			typeof(ParameterControlBase),
-			new PropertyMetadata(null, OnParameterChanged));
+    public static readonly DependencyProperty ParameterProperty =
+        DependencyProperty.Register(
+            nameof(Parameter),
+            typeof(Parameter),
+            typeof(ParameterControlBase),
+            new PropertyMetadata(null, OnParameterChanged));
 
-	private bool _suppressOutboundChange;
+    public static readonly DependencyProperty ClientProperty =
+        DependencyProperty.Register(
+            nameof(Client),
+            typeof(ApiClient),
+            typeof(ParameterControlBase),
+            new PropertyMetadata(null));
 
-	public Parameter? Parameter
-	{
-		get => (Parameter?)GetValue(ParameterProperty);
-		set => SetValue(ParameterProperty, value);
-	}
+    private bool _suppressOutboundChange;
+    private bool _ensureLoadStarted;
 
-	public string Caption => Parameter?.value?.title ?? Parameter?.path ?? string.Empty;
+    public Parameter? Parameter
+    {
+        get => (Parameter?)GetValue(ParameterProperty);
+        set => SetValue(ParameterProperty, value);
+    }
 
-	public string Path => Parameter?.path ?? string.Empty;
+    public ApiClient? Client
+    {
+        get => (ApiClient?)GetValue(ClientProperty);
+        set => SetValue(ClientProperty, value);
+    }
 
-	public double Min => Parameter?.value?.min ?? 0.0;
+    public string Caption => Parameter?.Definition?.Title ?? Parameter?.Name ?? Parameter?.Path ?? string.Empty;
 
-	public double Max => Parameter?.value?.max ?? 1.0;
+    public string Path => Parameter?.Path ?? string.Empty;
 
-	public double Default => Min; //HACK
+    public double Min => Parameter?.Definition?.Min ?? 0.0;
 
-	public double NumericValue
-	{
-		get => TryGetNumericValue(Parameter?.Value, out var v) ? v : Min;
-	}
+    public double Max => Parameter?.Definition?.Max ?? 1.0;
 
-	public string ValueString => FormatValue(Parameter?.Value) + " " + Parameter.value.unit;
+    public double Default => Min;
 
-	public event Action<ParameterControlBase, object>? UserValueChanged;
+    public bool IsReady => Parameter?.IsReady == true;
 
-	protected ParameterControlBase()
-	{
-		Loaded += (_, _) => RefreshFromParameter();
-		GotFocus += (_, _) => AnnounceFocus();
-	}
+    public double NumericValue
+    {
+        get => TryGetNumericValue(Parameter?.Value, out var v) ? v : Min;
+    }
 
-	protected void SetValueFromMixer(object? value)
-	{
-		if (Parameter == null)
-			return;
+    public string ValueString
+    {
+        get
+        {
+            var valueText = FormatValue(Parameter?.Value);
+            var unit = Parameter?.Definition?.Unit;
 
-		_suppressOutboundChange = true;
-		try
-		{
-			Parameter.Value = value;
-			RefreshFromParameter();
-		}
-		finally
-		{
-			_suppressOutboundChange = false;
-		}
-	}
+            return string.IsNullOrWhiteSpace(unit)
+                ? valueText
+                : $"{valueText} {unit}";
+        }
+    }
 
-	protected void SetValueFromUser(object value)
-	{
-		if (Parameter == null)
-			return;
+    public event Action<ParameterControlBase, object>? UserValueChanged;
 
-		if (value is double d)
-		{
-			value = Math.Clamp(d, Min, Max);
-		}
+    protected ParameterControlBase()
+    {
+        Loaded += async (_, _) =>
+        {
+            await EnsureLoaded();
+            RefreshFromParameter();
+        };
 
-		_suppressOutboundChange = true;
-		try
-		{
-			Parameter.Value = value;
-			RefreshFromParameter();
-		}
-		finally
-		{
-			_suppressOutboundChange = false;
-		}
+        GotFocus += async (_, _) =>
+        {
+            await EnsureLoaded();
+            AnnounceFocus();
+        };
+    }
 
-		UserValueChanged?.Invoke(this, value);
-		AnnounceValue();
-	}
+    protected async Task EnsureLoaded()
+    {
+        if (_ensureLoadStarted)
+            return;
 
-	protected void NudgeValue(double delta)
-	{
-		SetValueFromUser(NumericValue + delta);
-	}
+        if (Client == null || Parameter == null)
+            return;
 
-	protected virtual string FormatValue(object? value)
-	{
-		if (value == null)
-			return "unknown";
+        _ensureLoadStarted = true;
+        try
+        {
+            await Client.EnsureLoaded(Parameter);
+        }
+        finally
+        {
+            _ensureLoadStarted = false;
+        }
+    }
 
-		if (value is double d)
-			return d.ToString("0.###", CultureInfo.InvariantCulture);
+    protected void SetValueFromMixer(object? value)
+    {
+        if (Parameter == null)
+            return;
 
-		if (value is float f)
-			return f.ToString("0.###", CultureInfo.InvariantCulture);
+        _suppressOutboundChange = true;
+        try
+        {
+            Parameter.Value = value;
+            RefreshFromParameter();
+        }
+        finally
+        {
+            _suppressOutboundChange = false;
+        }
+    }
 
-		return value.ToString() ?? "unknown";
-	}
+    protected async Task SetValueFromUser(object value)
+    {
+        if (Parameter == null || Client == null)
+            return;
 
-	protected virtual void RefreshFromParameter()
-	{
-	}
+        if (value is double d)
+            value = Math.Clamp(d, Min, Max);
 
-	protected virtual void AnnounceFocus()
-	{
-		Speech.SpeechManager.Say($"{Caption} ({ValueString})");
-	}
+        _suppressOutboundChange = true;
+        try
+        {
+            Parameter.Value = value;
+            RefreshFromParameter();
+        }
+        finally
+        {
+            _suppressOutboundChange = false;
+        }
 
-	protected virtual void AnnounceValue()
-	{
-		Speech.SpeechManager.Say(ValueString);
-	}
+        UserValueChanged?.Invoke(this, value);
+        AnnounceValue();
 
-	protected bool IsOutboundSuppressed() => _suppressOutboundChange;
+        await Client.SetValue(Parameter, value);
+    }
 
-	private static void OnParameterChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-	{
-		var control = (ParameterControlBase)d;
+    protected async Task NudgeValue(double delta)
+    {
+        await SetValueFromUser(NumericValue + delta);
+    }
 
-		if (e.OldValue is INotifyPropertyChanged oldNpc)
-			oldNpc.PropertyChanged -= control.OnParameterPropertyChanged;
+    protected virtual string FormatValue(object? value)
+    {
+        if (value == null)
+            return "unknown";
 
-		if (e.NewValue is INotifyPropertyChanged newNpc)
-			newNpc.PropertyChanged += control.OnParameterPropertyChanged;
+        if (value is double d)
+            return d.ToString("0.###", CultureInfo.InvariantCulture);
 
-		control.RefreshFromParameter();
-	}
+        if (value is float f)
+            return f.ToString("0.###", CultureInfo.InvariantCulture);
 
+        return value.ToString() ?? "unknown";
+    }
 
+    protected virtual void RefreshFromParameter()
+    {
+    }
 
-	private void OnParameterPropertyChanged(object? sender, PropertyChangedEventArgs e)
-	{
-		if (e.PropertyName == nameof(Parameter.Value) || string.IsNullOrEmpty(e.PropertyName))
-		{
-			Dispatcher.BeginInvoke(RefreshFromParameter);
-		}
-	}
+    protected virtual void AnnounceFocus()
+    {
+        Speech.SpeechManager.Say($"{Caption} ({ValueString})");
+    }
 
-	private static bool TryGetNumericValue(object? value, out double result)
-	{
-		switch (value)
-		{
-			case double d:
-				result = d;
-				return true;
-			case float f:
-				result = f;
-				return true;
-			case int i:
-				result = i;
-				return true;
-			case long l:
-				result = l;
-				return true;
-			case string s when double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed):
-				result = parsed;
-				return true;
-			default:
-				result = 0;
-				return false;
-		}
-	}
+    protected virtual void AnnounceValue()
+    {
+        Speech.SpeechManager.Say(ValueString);
+    }
+
+    protected bool IsOutboundSuppressed() => _suppressOutboundChange;
+
+    private static void OnParameterChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var control = (ParameterControlBase)d;
+
+        if (e.OldValue is INotifyPropertyChanged oldNpc)
+            oldNpc.PropertyChanged -= control.OnParameterPropertyChanged;
+
+        if (e.NewValue is INotifyPropertyChanged newNpc)
+            newNpc.PropertyChanged += control.OnParameterPropertyChanged;
+
+        control.RefreshFromParameter();
+    }
+
+    private void OnParameterPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(RefreshFromParameter);
+    }
+
+    private static bool TryGetNumericValue(object? value, out double result)
+    {
+        switch (value)
+        {
+            case double d:
+                result = d;
+                return true;
+            case float f:
+                result = f;
+                return true;
+            case int i:
+                result = i;
+                return true;
+            case long l:
+                result = l;
+                return true;
+            case string s when double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed):
+                result = parsed;
+                return true;
+            default:
+                result = 0;
+                return false;
+        }
+    }
 }

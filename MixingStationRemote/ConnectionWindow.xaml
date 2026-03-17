@@ -12,7 +12,7 @@
 		<ComboBox x:Name="cmbModels" DisplayMemberPath="name" IsEnabled="False" SelectionChanged="cmbModels_SelectionChanged"/>
 		<Button x:Name="btnSearch" Content="Search" IsEnabled="False" Click="btnSearch_Click"/>
 		<Button x:Name="btnRefresh" Content="Refresh Results" Click="btnRefresh_Click"/>
-		<ListBox x:Name="lstMixers" />
+		<ListBox x:Name="lstMixers" DisplayMemberPath="name" />
 		<Button x:Name="btnConnect" Content="Connect" IsEnabled="False" Click="btnConnect_Click"/>
 	</StackPanel>
 </Window>

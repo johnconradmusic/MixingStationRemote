@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -9,299 +10,314 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 namespace MixingStationRemote;
 public readonly record struct ParameterUpdate(string Path, string Value);
 
 public class ApiClient
 {
-	private readonly HttpClient _httpClient = new();
-	private readonly ClientWebSocket _websocket = new();
-	private Task? _receiveLoop;
+    private readonly HttpClient _httpClient = new();
+    private readonly ClientWebSocket _websocket = new();
+    private Task? _receiveLoop;
 
-	public ConsoleArchitecture ConsoleArchitecture { get; private set; }
-	public IReadOnlyDictionary<string, Parameter> ParameterDictionary => _parameters;
-	private readonly Dictionary<string, Parameter> _parameters = new(StringComparer.Ordinal);
-	public void SetDiscoveryBase(string stationUrl)
-	{
-		_httpClient.BaseAddress = new Uri(stationUrl.EndsWith("/") ? stationUrl : stationUrl + "/");
-	}
+    public ConsoleArchitecture ConsoleArchitecture { get; private set; }
 
-	public async Task<SupportedMixersRoot> GetSupportedMixerModels()
-	{
-		var r = await _httpClient.GetAsync("app/mixers/available");
-		r.EnsureSuccessStatusCode();
-		var json = await r.Content.ReadAsStringAsync();
-		return JsonSerializer.Deserialize<SupportedMixersRoot>(json) ?? new();
-	}
+    public void SetDiscoveryBase(string stationUrl)
+    {
+        _httpClient.BaseAddress = new Uri(stationUrl.EndsWith("/") ? stationUrl : stationUrl + "/");
+    }
 
-	public async Task StartSearch(int model)
-	{
-		await _httpClient.PostAsync("app/mixers/disconnect", null).ConfigureAwait(false);
-		await Task.Delay(500);
+    public async Task<SupportedMixersRoot> GetSupportedMixerModels()
+    {
+        var r = await _httpClient.GetAsync("app/mixers/available");
+        r.EnsureSuccessStatusCode();
+        var json = await r.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<SupportedMixersRoot>(json) ?? new();
+    }
 
-		var body = JsonSerializer.Serialize(new { consoleId = model });
-		using var content = new StringContent(body, Encoding.UTF8, "application/json");
-		using var response = await _httpClient.PostAsync("app/mixers/search", content).ConfigureAwait(false);
-		var cont = await response.Content.ReadAsStringAsync();
-		await Task.Delay(500);
+    public async Task<ConsoleArchitecture> GetConsoleArchitecture()
+    {
+        var r = await _httpClient.GetAsync("console/information");
+        r.EnsureSuccessStatusCode();
+        var json = await r.Content.ReadAsStringAsync();
+        ConsoleArchitecture = JsonSerializer.Deserialize<ConsoleArchitecture>(json) ?? new();
+        return ConsoleArchitecture;
+    }
 
-		response.EnsureSuccessStatusCode();
-	}
+    public async Task StartSearch(int model)
+    {
+        await Disconnect().ConfigureAwait(false);
 
-	public async Task<MixerSearchRoot> GetSearchResults()
-	{
-		var r = await _httpClient.GetAsync("app/mixers/searchResults");
-		r.EnsureSuccessStatusCode();
-		var json = await r.Content.ReadAsStringAsync();
-		return JsonSerializer.Deserialize<MixerSearchRoot>(json) ?? new();
-	}
+        var body = JsonSerializer.Serialize(new { consoleId = model });
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync("app/mixers/search", content).ConfigureAwait(false);
+        var cont = await response.Content.ReadAsStringAsync();
+        await Task.Delay(500);
 
-	public async Task ConnectToConsole(MixerDevice device, ConsoleGroup console)
-	{
-		var body = JsonSerializer.Serialize(new { consoleId = console.consoleId, ip = device.ip });
-		using var content = new StringContent(body, Encoding.UTF8, "application/json");
-		using var response = await _httpClient.PostAsync("app/mixers/connect", content).ConfigureAwait(false);
-		var responseContent = response.Content.ReadAsStringAsync();
-	}
+        response.EnsureSuccessStatusCode();
+    }
 
-	public async Task<MixerInfo> GetCurrentMixer()
-	{
-		var response = await _httpClient.GetAsync("app/mixers/current");
-		response.EnsureSuccessStatusCode();
-		var content = await response.Content.ReadAsStringAsync();
-		var mixerInfo = JsonSerializer.Deserialize<MixerInfo>(content);
-		return mixerInfo;
-	}
+    public async Task Disconnect()
+    {
+        await _httpClient.PostAsync("app/mixers/disconnect", null).ConfigureAwait(false);
+        await Task.Delay(500);
+    }
 
-	public async Task ConnectWebsocket()
-	{
-		if (_websocket.State == WebSocketState.Open)
-			return;
+    public async Task<MixerSearchRoot> GetSearchResults()
+    {
+        var r = await _httpClient.GetAsync("app/mixers/searchResults");
+        r.EnsureSuccessStatusCode();
+        var json = await r.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<MixerSearchRoot>(json) ?? new();
+    }
 
-		_cts = new CancellationTokenSource();
+    public async Task ConnectToConsole(MixerDevice device, ConsoleGroup console)
+    {
+        var body = JsonSerializer.Serialize(new { consoleId = console.consoleId, ip = device.ip });
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync("app/mixers/connect", content).ConfigureAwait(false);
+        var responseContent = response.Content.ReadAsStringAsync();
+    }
 
-		await _websocket.ConnectAsync(new Uri("ws://localhost:8080"), _cts.Token);
-		_receiveLoop = Task.Run(() => ReceiveLoopAsync(_cts.Token), _cts.Token);
-	}
-	private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
-	{
-		if (_websocket == null)
-			return;
+    public async Task<MixerInfo> GetCurrentMixer()
+    {
+        var response = await _httpClient.GetAsync("app/mixers/current");
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        var mixerInfo = JsonSerializer.Deserialize<MixerInfo>(content);
+        return mixerInfo;
+    }
 
-		while (!cancellationToken.IsCancellationRequested && _websocket.State == WebSocketState.Open)
-		{
+    public async Task ConnectWebsocket()
+    {
+        if (_websocket.State == WebSocketState.Open)
+            return;
 
-			var message = await ReceiveFullTextMessageAsync(_websocket, cancellationToken).ConfigureAwait(false);
-			if (message == null)
-				break;
+        _cts = new CancellationTokenSource();
 
-			ProcessWebSocketMessage(message);
-		}
-	}
+        await _websocket.ConnectAsync(new Uri("ws://localhost:8080"), _cts.Token);
+        await Subscribe("*");
+        _receiveLoop = Task.Run(() => ReceiveLoopAsync(_cts.Token), _cts.Token);
+    }
+    private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_websocket == null)
+            return;
 
-	private void ProcessWebSocketMessage(string json)
-	{
-		using var doc = JsonDocument.Parse(json);
-		var root = doc.RootElement;
+        while (!cancellationToken.IsCancellationRequested && _websocket.State == WebSocketState.Open)
+        {
 
-		if (root.ValueKind != JsonValueKind.Object)
-			return;
-		if (root.TryGetProperty("error", out _))
-			return;
+            var message = await ReceiveFullTextMessageAsync(_websocket, cancellationToken).ConfigureAwait(false);
+            if (message == null)
+                break;
 
-		if (!root.TryGetProperty("path", out var pathProp))
-			return;
+            ProcessWebSocketMessage(message);
+        }
+    }
 
-		var fullPath = pathProp.GetString();
-		if (string.IsNullOrEmpty(fullPath))
-			return;
+    private void ProcessWebSocketMessage(string json)
+    {
+        if(json.Contains("routing.out.2.63"))
+        {
+            Debug.WriteLine("Received message for routing.out.2.63");
+        }
 
-		if (!root.TryGetProperty("body", out var body) ||
-			!body.TryGetProperty("value", out var valElement))
-			return;
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
 
-		string path = fullPath.Replace("/console/data/get/", "").TrimStart('/');
-		string valueStr = valElement.ToString();
+        if (root.ValueKind != JsonValueKind.Object)
+            return;
+        if (root.TryGetProperty("error", out _))
+            return;
 
-		ParameterUpdated?.Invoke(new(path, valueStr));
-	}
-	private CancellationTokenSource? _cts;
-	private static async Task<string?> ReceiveFullTextMessageAsync(ClientWebSocket webSocket, CancellationToken cancellationToken)
-	{
-		var buffer = ArrayPool<byte>.Shared.Rent(16 * 1024);
+        if (!root.TryGetProperty("path", out var pathProp))
+            return;
 
-		try
-		{
-			using var stream = new MemoryStream();
+        var fullPath = pathProp.GetString();
+        if (string.IsNullOrEmpty(fullPath))
+            return;
 
-			while (true)
-			{
-				var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
+        if (!root.TryGetProperty("body", out var body) ||
+            !body.TryGetProperty("value", out var valElement))
+            return;
 
-				if (result.MessageType == WebSocketMessageType.Close)
-					return null;
+        string path = fullPath.Replace("/console/data/get/", "").TrimStart('/');
+                
+        string valueStr = valElement.ToString();
 
-				if (result.Count > 0)
-					stream.Write(buffer, 0, result.Count);
+        ParameterUpdated?.Invoke(new(path, valueStr));
+    }
+    private CancellationTokenSource? _cts;
+    private static async Task<string?> ReceiveFullTextMessageAsync(ClientWebSocket webSocket, CancellationToken cancellationToken)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(16 * 1024);
 
-				if (result.EndOfMessage)
-					break;
-			}
+        try
+        {
+            using var stream = new MemoryStream();
 
-			return Encoding.UTF8.GetString(stream.ToArray());
-		}
-		finally
-		{
-			ArrayPool<byte>.Shared.Return(buffer);
-		}
-	}
+            while (true)
+            {
+                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
 
-	public async Task<Dictionary<string, Parameter>> GetAllParametersWithDefinitions()
-	{
+                if (result.MessageType == WebSocketMessageType.Close)
+                    return null;
 
-		var r = await _httpClient.GetAsync("console/information").ConfigureAwait(false);
-		r.EnsureSuccessStatusCode();
-		var jsonText = await r.Content.ReadAsStringAsync().ConfigureAwait(false);
-		ConsoleArchitecture = JsonSerializer.Deserialize<ConsoleArchitecture>(jsonText);
+                if (result.Count > 0)
+                    stream.Write(buffer, 0, result.Count);
 
+                if (result.EndOfMessage)
+                    break;
+            }
 
-		var response = await _httpClient.GetAsync("console/data/paths").ConfigureAwait(false);
-		response.EnsureSuccessStatusCode();
-		var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
 
-		var tree = JsonDocument.Parse(json).RootElement;
+    private async Task<Parameter> GetDefForPath(string path)
+    {
+        using var response = await _httpClient
+                           .GetAsync($"console/data/definitions2/{path}")
+                           .ConfigureAwait(false);
 
-		var allPaths = new List<string>();
-		CollectLeafPaths(tree, string.Empty, allPaths);
+        response.EnsureSuccessStatusCode();
 
-		var defs = new Dictionary<string, Parameter>(StringComparer.Ordinal);
+        await using var stream = await response.Content
+            .ReadAsStreamAsync()
+            .ConfigureAwait(false);
 
-		var tasks = allPaths.Select(async path =>
-		{
-			try
-			{
-				var defResponse = await _httpClient.GetAsync($"console/data/definitions2/{path}").ConfigureAwait(false);
-				var defJson = await defResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-				var param = JsonSerializer.Deserialize<Parameter>(defJson);
+        var param = await JsonSerializer
+            .DeserializeAsync<Parameter>(stream)
+            .ConfigureAwait(false);
 
-				if (param != null)
-				{
-					param.path = path;
-					param.Value = await GetValue(path).ConfigureAwait(false);
+        param.Path = path;
+        return param;
+    }
 
-					lock (defs)
-					{
-						defs[path] = param;
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				Debug.WriteLine($"Failed to load definition for {path}: {ex.Message}");
-			}
-		});
+   
+    public event Action<ParameterUpdate>? ParameterUpdated;
 
-		await Task.WhenAll(tasks).ConfigureAwait(false);
+    public async Task Subscribe(string path)
+    {
+        if (_websocket.State != WebSocketState.Open)
+            await ConnectWebsocket();
+        var subscription = new
+        {
+            path = "/console/data/subscribe",
+            method = "POST",
+            body = new
+            {
+                path = path,           // or more specific e.g. "ch.*.mix.lvl" for main LR faders only
+                format = new[] { "val" } // or "norm" / "number" may work in some versions, but "val" is standard
+                                         // format = "number"     // ← this key is usually NOT used; see notes below
+            }
+        };
 
-		_parameters.Clear();
-		foreach (var kv in defs)
-			_parameters[kv.Key] = kv.Value;
+        var json = JsonSerializer.Serialize(subscription);
 
-		return defs;
-	}
+        await _websocket.SendAsync(
+            new ArraySegment<byte>(Encoding.UTF8.GetBytes(json)),
+            WebSocketMessageType.Text,
+            true,
+            _cts.Token).ConfigureAwait(false);
+    }
 
-	private void CollectLeafPaths(JsonElement node, string currentPath, List<string> paths)
-	{
-		if (node.ValueKind != JsonValueKind.Object)
-			return;
+    public async Task<string?> GetValue(string path, string format = "val")
+    {
+        var response = await _httpClient.GetAsync($"/console/data/get/{path}/{format}").ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var json = JsonDocument.Parse(content);
+        json.RootElement.TryGetProperty("value", out var val);
 
-		if (node.TryGetProperty("val", out var valArray) &&
-			valArray.ValueKind == JsonValueKind.Array)
-		{
-			foreach (var item in valArray.EnumerateArray())
-			{
-				if (item.ValueKind == JsonValueKind.String)
-				{
-					var paramName = item.GetString();
-					if (!string.IsNullOrEmpty(paramName))
-					{
-						var fullPath = string.IsNullOrEmpty(currentPath)
-							? paramName
-							: $"{currentPath}.{paramName}";   // using . as separator
+        return val.ToString();
+    }
 
-						paths.Add(fullPath);
-					}
-				}
-			}
-		}
+    public async Task SendUpdate(string path, object value, string format = "val")
+    {
+        var body = JsonSerializer.Serialize(new { format = format, value = value });
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync($"/console/data/set/{path}/{format}", content).ConfigureAwait(false);
+        var responseContent = response.Content.ReadAsStringAsync();
+    }
 
-		if (node.TryGetProperty("child", out var child) &&
-			child.ValueKind == JsonValueKind.Object)
-		{
-			foreach (var prop in child.EnumerateObject())
-			{
-				var key = prop.Name;
-				var newPath = string.IsNullOrEmpty(currentPath)
-					? key
-					: $"{currentPath}.{key}";
+    public async Task<AppState?> GetAppState()
+    {
+        try
+        {
+            var result = await _httpClient.GetAsync("app/state").ConfigureAwait(false);
+            result.EnsureSuccessStatusCode();
+            var json = await result.Content.ReadAsStringAsync();
+            var appState = JsonSerializer.Deserialize<AppState>(json);
+            return appState;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to get app state: {ex.Message}");
+            return null;
+        }
+    }
 
-				CollectLeafPaths(prop.Value, newPath, paths);
-			}
-		}
-	}
-	public event Action<ParameterUpdate>? ParameterUpdated;
+    private readonly ConcurrentDictionary<string, Parameter> _parameterCache = new();
 
-	public async Task Subscribe(string path)
-	{
-		if (_websocket.State != WebSocketState.Open)
-			await ConnectWebsocket();
-		var subscription = new
-		{
-			path = "/console/data/subscribe",
-			method = "POST",
-			body = new
-			{
-				path = path,           // or more specific e.g. "ch.*.mix.lvl" for main LR faders only
-				format = new[] { "val" } // or "norm" / "number" may work in some versions, but "val" is standard
-										 // format = "number"     // ← this key is usually NOT used; see notes below
-			}
-		};
+    public Parameter GetParameter(string path)
+    {
+        return _parameterCache.GetOrAdd(path, p => new Parameter { Path = p });
+    }
 
-		var json = JsonSerializer.Serialize(subscription);
+    public async Task EnsureDefinitionLoaded(Parameter parameter)
+    {
+        if (parameter.HasDefinition || parameter.IsLoading)
+            return;
 
-		await _websocket.SendAsync(
-			new ArraySegment<byte>(Encoding.UTF8.GetBytes(json)),
-			WebSocketMessageType.Text,
-			true,
-			_cts.Token).ConfigureAwait(false);
-	}
+        parameter.IsLoading = true;
+        try
+        {
+            var loaded = await GetDefForPath(parameter.Path).ConfigureAwait(false);
+            if (loaded?.Definition != null)
+            {
+                parameter.Name = loaded.Name;
+                parameter.SetDefinition(loaded.Definition);
+            }
+        }
+        finally
+        {
+            parameter.IsLoading = false;
+        }
+    }
 
-	public async Task<string?> GetValue(string path, string format = "val")
-	{
-		var response = await _httpClient.GetAsync($"/console/data/get/{path}/{format}").ConfigureAwait(false);
-		response.EnsureSuccessStatusCode();
-		var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-		var json = JsonDocument.Parse(content);
-		json.RootElement.TryGetProperty("value", out var val);
+    public async Task EnsureValueLoaded(Parameter parameter)
+    {
+        if (parameter.HasValue || parameter.IsLoading)
+            return;
 
-		return val.ToString();
-	}
+        parameter.IsLoading = true;
+        try
+        {
+            var value = await GetValue(parameter.Path).ConfigureAwait(false);
+            parameter.Value = value;
+        }
+        finally
+        {
+            parameter.IsLoading = false;
+        }
+    }
 
-	public async Task SendUpdate(string path, object value, string format = "val")
-	{
-		var body = JsonSerializer.Serialize(new { format = format, value = value });
-		using var content = new StringContent(body, Encoding.UTF8, "application/json");
-		using var response = await _httpClient.PostAsync($"/console/data/set/{path}/{format}", content).ConfigureAwait(false);
-		var responseContent = response.Content.ReadAsStringAsync();
-	}
+    public async Task EnsureLoaded(Parameter parameter)
+    {
+        await EnsureDefinitionLoaded(parameter).ConfigureAwait(false);
+        await EnsureValueLoaded(parameter).ConfigureAwait(false);
+    }
 
-	public async Task<AppState?> GetAppState()
-	{
-		var result = await _httpClient.GetAsync("app/state").ConfigureAwait(false);
-		result.EnsureSuccessStatusCode();
-		var json = await result.Content.ReadAsStringAsync();
-		var appState = JsonSerializer.Deserialize<AppState>(json);
-		return appState;
-	}
+    public async Task SetValue(Parameter parameter, object value)
+    {
+        await SendUpdate(parameter.Path, value).ConfigureAwait(false);
+        parameter.Value = value;
+    }
+
 }

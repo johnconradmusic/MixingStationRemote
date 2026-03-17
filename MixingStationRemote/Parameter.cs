@@ -1,18 +1,22 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 namespace MixingStationRemote;
 
-public class Parameter : INotifyPropertyChanged
+
+public sealed class Parameter : INotifyPropertyChanged
 {
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = "";
 
-	public string path { get; set; } = "";
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 
-	public string name { get; set; }
+    [JsonPropertyName("value")]
+    public ParameterDefinition? Definition { get; set; }
 
-	public ParameterDefinition value { get; set; }
-
-	private object _value = 0;
-public object? Value
+    private object? _value;
+    public object? Value
     {
         get => _value;
         set
@@ -21,22 +25,64 @@ public object? Value
             {
                 _value = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(HasValue));
+                OnPropertyChanged(nameof(IsReady));
             }
         }
     }
-	public event PropertyChangedEventHandler? PropertyChanged;
-	private void OnPropertyChanged([CallerMemberName] string? name = null) =>
-		PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    private bool _isLoading;
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set
+        {
+            if (_isLoading != value)
+            {
+                _isLoading = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public bool HasDefinition => Definition != null;
+    public bool HasValue => Value != null;
+    public bool IsReady => HasDefinition && HasValue;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void SetDefinition(ParameterDefinition definition)
+    {
+        Definition = definition;
+        OnPropertyChanged(nameof(Definition));
+        OnPropertyChanged(nameof(HasDefinition));
+        OnPropertyChanged(nameof(IsReady));
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
-public class ParameterDefinition
+public sealed class ParameterDefinition
 {
-	public string unit { get; set; }
-	public bool tap { get; set; }
-	public double min { get; set; }
-	public double max { get; set; }
-	public double delta { get; set; }
-	public string title { get; set; }
-	public string type { get; set; }
+    [JsonPropertyName("unit")]
+    public string? Unit { get; set; }
 
+    [JsonPropertyName("tap")]
+    public bool Tap { get; set; }
+
+    [JsonPropertyName("min")]
+    public double Min { get; set; }
+
+    [JsonPropertyName("max")]
+    public double Max { get; set; }
+
+    [JsonPropertyName("delta")]
+    public double Delta { get; set; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
 }

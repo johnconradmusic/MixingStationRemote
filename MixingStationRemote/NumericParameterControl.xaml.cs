@@ -1,85 +1,82 @@
-﻿using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 
 namespace MixingStationRemote;
 
 public partial class NumericParameterControl : ParameterControlBase
 {
-	public NumericParameterControl()
-	{
-		InitializeComponent();
-	}
+    public NumericParameterControl()
+    {
+        InitializeComponent();
+    }
 
-	protected override void RefreshFromParameter()
-	{
-		if (!Dispatcher.CheckAccess())
-		{
-			Dispatcher.BeginInvoke(RefreshFromParameter);
-			return;
-		}
-		textBox.Text = ValueString;
-		label.Text = Parameter.value.title;
-		if (IsFocused)
-			AnnounceValue();
-	}
+    protected override void RefreshFromParameter()
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(RefreshFromParameter);
+            return;
+        }
 
-	private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
-	{
-		double delta = 0;
+        label.Text = Caption;
+        textBox.Text = IsReady ? ValueString : "Loading...";
+    }
 
-		if (e.Key == Key.Enter)
-		{
-			e.Handled = true;
-			AnnounceValue();
-			return;
-		}
+    private async void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!IsReady)
+            await EnsureLoaded();
 
-		if (e.Key == Key.Delete)
-		{
-			e.Handled = true;
-			SetValueFromUser(Default);
-			return;
-		}
+        double delta = 0;
 
-		if (e.Key == Key.Up)
-		{
-			e.Handled = true;
-			delta = GetSmallStep();
-		}
-		else if (e.Key == Key.Down)
-		{
-			e.Handled = true;
-			delta = -GetSmallStep();
-		}
-		else if (e.Key == Key.PageUp)
-		{
-			e.Handled = true;
-			delta = GetLargeStep();
-		}
-		else if (e.Key == Key.PageDown)
-		{
-			e.Handled = true;
-			delta = -GetLargeStep();
-		}
+        if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            AnnounceValue();
+            return;
+        }
 
-		if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-			delta /= 10.0;
+        if (e.Key == Key.Delete)
+        {
+            e.Handled = true;
+            await SetValueFromUser(Default);
+            return;
+        }
 
-		if (delta != 0)
-			NudgeValue(delta);
-	}
+        if (e.Key == Key.Up)
+        {
+            e.Handled = true;
+            delta = GetSmallStep();
+        }
+        else if (e.Key == Key.Down)
+        {
+            e.Handled = true;
+            delta = -GetSmallStep();
+        }
+        else if (e.Key == Key.PageUp)
+        {
+            e.Handled = true;
+            delta = GetLargeStep();
+        }
+        else if (e.Key == Key.PageDown)
+        {
+            e.Handled = true;
+            delta = -GetLargeStep();
+        }
 
-	private double GetSmallStep()
-	{
-		var minDelta = Parameter.value.delta;
-		return minDelta * 10;
-	}
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            delta /= 10.0;
 
-	private double GetLargeStep()
-	{
-		var minDelta = Parameter.value.delta;
-		return minDelta * 100;
-	}
+        if (delta != 0)
+            await NudgeValue(delta);
+    }
 
+    private double GetSmallStep()
+    {
+        return (Parameter?.Definition?.Delta ?? 0.01) * 10;
+    }
+
+    private double GetLargeStep()
+    {
+        return (Parameter?.Definition?.Delta ?? 0.01) * 100;
+    }
 }

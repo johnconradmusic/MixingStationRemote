@@ -26,15 +26,15 @@ public partial class MainWindow : Window
 		var mixer = await _client.GetCurrentMixer();
 		Title = mixer.currentModel + " - Mixing Station Remote";
 
+
+		var arc = await _client.GetConsoleArchitecture();
 		// Stay on UI thread after await, because you're building controls below
-		var defs = await _client.GetAllParametersWithDefinitions();
+	//	var defs = await _client.GetAllParametersWithDefinitions();
+		await _client.ConnectWebsocket();
 
-		var grouped = defs.Keys
-			.Where(p => p.StartsWith("ch."))
-			.GroupBy(GetChannelNumber)
-			.OrderBy(g => g.Key);
+		await Task.Delay(2500); //give some time for initial data to arrive, so we can group channels by number
 
-		channelCount = grouped.Count();
+		channelCount = arc.totalChannels;
 		selectedChannel = 0;
 		InitializeShortcuts();
 
@@ -45,60 +45,61 @@ public partial class MainWindow : Window
 	{
 		mixPanel.Children.Clear();
 		createdControls.Clear();
-		await AddParameterControl(mixPanel, "trim", $"ch.{selectedChannel}.headamp.gain");
-		await AddParameterControl(mixPanel, "level", $"ch.{selectedChannel}.mix.lvl");
-		await AddParameterControl(mixPanel, "hpf", $"ch.{selectedChannel}.preamp.filter.0.freq");
-		await AddParameterControl(mixPanel, "pan", $"ch.{selectedChannel}.mix.pan");
-		await AddToggleControl(mixPanel, "solo", $"ch.{selectedChannel}.solo");
+		await AddParameterControl(mixPanel, "trim", $"ch.{selectedChannel}.headamp.gain", _client);
+		await AddParameterControl(mixPanel, "level", $"ch.{selectedChannel}.mix.lvl", _client);
+		await AddParameterControl(mixPanel, "hpf", $"ch.{selectedChannel}.preamp.filter.0.freq", _client);
+		await AddParameterControl(mixPanel, "pan", $"ch.{selectedChannel}.mix.pan", _client);
+		await AddToggleControl(mixPanel, "solo", $"ch.{selectedChannel}.solo", _client);
 
-		var mutegroupCount = _client.ParameterDictionary.Keys.Where(c => c.StartsWith($"ch.{selectedChannel}.grp.mute.")).Count();
-		for (int i = 0; i < mutegroupCount; i++)
-		{
-			await AddToggleControl(mixPanel, $"mute group {i + 1}", $"ch.{selectedChannel}.grp.mute.{i}");
-		}
+		//var mutegroupCount = _client.ParameterDictionary.Keys.Where(c => c.StartsWith($"ch.{selectedChannel}.grp.mute.")).Count();
+		//for (int i = 0; i < mutegroupCount; i++)
+		//{
+		//	await AddToggleControl(mixPanel, $"mute group {i + 1}", $"ch.{selectedChannel}.grp.mute.{i}");
+		//}
 
 	}
 
 	Dictionary<string, FrameworkElement> createdControls = new();
 
-	private async Task AddParameterControl(Panel parent, string name, string path)
+	private async Task AddParameterControl(Panel parent, string name, string path, ApiClient client)
 	{
-		if (!_client.ParameterDictionary.TryGetValue(path, out var param))
-			return;
+		var param = client.GetParameter(path);
 
 		var control = new NumericParameterControl
 		{
-			Parameter = param
-		};
+			Parameter = param,
+			Client = client
+        };
 
 		parent.Children.Add(control);
 
 		control.UserValueChanged += async (_, value) =>
 			await _client.SendUpdate(path, value);
 
-		await _client.Subscribe(path);
+		//await _client.Subscribe(path);
 
 		createdControls[name] = control;
 	}
-	private async Task AddToggleControl(Panel parent, string name, string path)
+	private async Task AddToggleControl(Panel parent, string name, string path, ApiClient client)
 	{
-		if (!_client.ParameterDictionary.TryGetValue(path, out var param))
-			return;
+        var param = client.GetParameter(path);
 
-		if (param.value.title == null)
-			param.value.title = name;
 
 		var control = new BooleanParameterControl
 		{
-			Parameter = param
+			Parameter = param,
+			Client = client
 		};
+
+   //     if (param.Definition.Title == null)
+			//param.Definition.Title = name;
 
 		parent.Children.Add(control);
 
 		control.UserValueChanged += async (_, value) =>
 			await _client.SendUpdate(path, value);
 
-		await _client.Subscribe(path);
+		//await _client.Subscribe(path);
 
 		createdControls[name] = control;
 	}
@@ -110,20 +111,14 @@ public partial class MainWindow : Window
 			return;
 		}
 
-		if (!_client.ParameterDictionary.TryGetValue(p.Path, out var param))
-			return;
 
-		if (double.TryParse(p.Value, out var num))
-			param.Value = num;
-		else
-			param.Value = p.Value;
+
+  //      if (double.TryParse(p.Value, out var num))
+		//	param.Value = num;
+		//else
+		//	param.Value = p.Value;
 	}
 
-	private int GetChannelNumber(string p)
-	{
-		var num = p.Replace("ch.", "").Split(".")[0];
-		return int.Parse(num);
-	}
 	private Dictionary<Key, RoutedEventHandler> shortcutActions = new Dictionary<Key, RoutedEventHandler>();
 	private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
 	{
