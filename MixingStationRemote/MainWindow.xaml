@@ -1,0 +1,127 @@
+﻿<Window x:Class="MixingStationRemote.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MixingStationRemote"
+        mc:Ignorable="d" PreviewKeyDown="Window_PreviewKeyDown"
+        Title="MainWindow" Height="450" Width="800" Loaded="Window_Loaded">
+	<Grid Focusable="False">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="20" />
+			<RowDefinition Height="20" />
+			<RowDefinition />
+		</Grid.RowDefinitions>
+		<Menu IsTabStop="False" Grid.Row="0">
+			<local:CustomMenuItem Header="System">
+				<local:CustomMenuItem x:Name="exitMenuItem" Header="Exit" Click="exitMenuItem_Click"/>
+			</local:CustomMenuItem>
+			<!--<local:CustomMenuItem Header="Scene">
+				<local:CustomMenuItem Click="LoadSceneMenuButton_Click" x:Name="LoadSceneMenuButton" Header="Load Scene..."/>
+				<local:CustomMenuItem Tag="Scene" Header="Scene Filters" Click="projectFilterMenuItem_Click"/>
+				<local:CustomMenuItem Click="SaveSceneButton_Click" x:Name="SaveSceneButton" Header="Save Scene"/>
+				<local:CustomMenuItem Click="SaveSceneAsButton_Click" x:Name="SaveSceneAsButton" Header="Save Scene As..."/>
+				<local:CustomMenuItem x:Name="resetScene" Click="resetScene_Click"  Header="Reset Scene"/>
+			</local:CustomMenuItem>-->
+			<!--<local:CustomMenuItem x:Name="viewMenu" Header="View">
+				<local:CustomMenuItem Header="Settings" x:Name="settingMenuItem" Click="settingMenuItem_Click"/>
+				<Separator/>
+				<local:CustomMenuItem Tag="EQ" Header="EQ Window" Click="CustomMenuItem_Click"/>
+				<local:CustomMenuItem Tag="Comp" Header="Compressor Window" Click="CustomMenuItem_Click"/>
+				<local:CustomMenuItem Tag="Gate" Header="Gate Window" Click="CustomMenuItem_Click"/>
+				<local:CustomMenuItem Tag="Limit" Header="Limiter Window" Click="CustomMenuItem_Click"/>
+				<local:CustomMenuItem Tag="Routing" Header="Routing Window" Click="CustomMenuItem_Click"/>
+				<local:CustomMenuItem Tag="Sends" Header="Sends Window" Click="CustomMenuItem_Click"/>
+				<local:CustomMenuItem Tag="SignalGen" Header="Signal Generator" Click="CustomMenuItem_Click"/>
+				<Separator/>
+			</local:CustomMenuItem>-->
+			<!--<local:CustomMenuItem Header="Mix Selector" x:Name="mixMenu"/>
+			<local:CustomMenuItem Header="Mute Groups">
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup1username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup1}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="1" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="1" Click="renameMuteGroup"/>
+				</local:CustomMenuItem>
+
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup2username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup2}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="2" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="2" Click="renameMuteGroup"/>
+				</local:CustomMenuItem>
+
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup3username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup3}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="3" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="3" Click="renameMuteGroup"/>
+				</local:CustomMenuItem>
+
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup4username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup4}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="4" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="4" Click="renameMuteGroup"/>
+				</local:CustomMenuItem>
+
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup5username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup5}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="5" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="5" Click="renameMuteGroup"/>
+				</local:CustomMenuItem>
+
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup6username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup6}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="6" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="6" Click="renameMuteGroup"/>
+				</local:CustomMenuItem>
+
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup7username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup7}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="7" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="7" Click="renameMuteGroup"/> 7
+				</local:CustomMenuItem>
+
+				<local:CustomMenuItem Header="{Binding Mutegroup.mutegroup8username}">
+					<local:CustomMenuItem Header="Muted" IsCheckable="True" IsChecked="{Binding Mutegroup.mutegroup8}"/>
+					<local:CustomMenuItem Header="Assign Current Mutes" Tag="8" Click="assignMutes"/>
+					<local:CustomMenuItem Header="Rename Mute Group" Tag="8" Click="renameMuteGroup"/>
+				</local:CustomMenuItem>
+			</local:CustomMenuItem>-->
+
+		</Menu>
+		
+
+		<StackPanel KeyboardNavigation.TabNavigation="Cycle" VerticalAlignment="Top" HorizontalAlignment="Center" DataContext="{Binding ElementName=ChannelSelector, Path=SelectedItem}" Grid.Row="2" Orientation="Horizontal">
+			<StackPanel.ContextMenu>
+				<ContextMenu x:Name="contextMenu" Placement="Center">
+					<local:CustomMenuItem x:Name="preampMenuItem" Header="Preamp"/>
+					<!--<local:CustomMenuItem Header="Mute" IsCheckable="True" IsChecked="{Binding mute}" />
+					<local:CustomMenuItem Header="Solo" IsCheckable="True" IsChecked="{Binding solo}" />
+					<local:CustomMenuItem Header="Phase Invert" IsCheckable="True" IsChecked="{Binding polarity}" />
+					<local:CustomMenuItem Header="Phantom" IsCheckable="True" IsChecked="{Binding phantom}" />
+					<local:CustomMenuItem Header="Clip Protection" IsCheckable="True" IsChecked="{Binding clipProtection}" />
+					<Separator />
+					<local:CustomMenuItem Header="Copy Channel" x:Name="copyMenuItem" Tag="Copy" Click="copyPasteMenuItem_Click"/>
+					<local:CustomMenuItem Header="Paste Channel" x:Name="PasteMenuItem" Tag="Paste" Click="copyPasteMenuItem_Click"/>
+
+					<Separator/>
+					<local:CustomMenuItem Tag="Load" Header="Load Preset" Click="CustomMenuItem_Click"/>
+					<local:CustomMenuItem x:Name="resetChannelMenuItem" Header="Reset Channel" Click="resetChannelMenuItem_Click"/>
+					<local:CustomMenuItem Click="CustomMenuItem_Click_1" Header="Rename Channel"/>
+
+					<local:CustomMenuItem Header="Stereo Link Options">
+						<local:CustomMenuItem Header="Link" IsCheckable="True" IsChecked="{Binding link}" />
+						<Separator />
+						<local:CustomMenuItem Header="Gain" IsCheckable="True" IsChecked="{Binding link_ch_gain}" />
+						<local:CustomMenuItem Header="Pan" IsCheckable="True" IsChecked="{Binding link_pan}" />
+						<local:CustomMenuItem Header="Fader" IsCheckable="True" IsChecked="{Binding link_fader}" />
+						<local:CustomMenuItem Header="Dynamics" IsCheckable="True" IsChecked="{Binding link_dyn}" />
+						<local:CustomMenuItem Header="Name" IsCheckable="True" IsChecked="{Binding link_ch_name}" />
+						<local:CustomMenuItem Header="Insert FX" IsCheckable="True" IsChecked="{Binding link_ins_fx}" />
+					</local:CustomMenuItem>-->
+				</ContextMenu>
+			</StackPanel.ContextMenu>
+			<StackPanel x:Name="mixPanel" Orientation="Horizontal">
+				
+			</StackPanel>
+		</StackPanel>
+	</Grid>
+</Window>

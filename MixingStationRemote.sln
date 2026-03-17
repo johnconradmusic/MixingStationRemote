@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37012.4 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MixingStationRemote", "MixingStationRemote\MixingStationRemote.csproj", "{F64405B7-6774-4A81-8345-365C623D8879}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F64405B7-6774-4A81-8345-365C623D8879}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F64405B7-6774-4A81-8345-365C623D8879}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F64405B7-6774-4A81-8345-365C623D8879}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F64405B7-6774-4A81-8345-365C623D8879}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4C740CFE-3371-42FD-913A-04399A70C728}
+	EndGlobalSection
+EndGlobal

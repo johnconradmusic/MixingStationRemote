@@ -1,0 +1,13 @@
+﻿<local:ParameterControlBase x:Class="MixingStationRemote.BooleanParameterControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:MixingStationRemote"
+             mc:Ignorable="d" 
+             PreviewKeyDown="ParameterControlBase_PreviewKeyDown" Focusable="True" Width="50" Height="32" IsTabStop="True">
+	<StackPanel Margin="2">
+		<TextBlock x:Name="label" Focusable="False" FontSize="8" Text="{Binding Caption}"/>
+		<TextBox x:Name="textBox" Background="PaleVioletRed" Focusable="False"/>
+	</StackPanel>
+</local:ParameterControlBase>
