@@ -42,6 +42,8 @@ public class ApiClient
         r.EnsureSuccessStatusCode();
         var json = await r.Content.ReadAsStringAsync();
         ConsoleArchitecture = JsonSerializer.Deserialize<ConsoleArchitecture>(json) ?? new();
+        var str = ConsoleArchitecture.ToString();
+
         return ConsoleArchitecture;
     }
 
@@ -118,7 +120,7 @@ public class ApiClient
 
     private void ProcessWebSocketMessage(string json)
     {
-        if(json.Contains("routing.out.2.63"))
+        if (json.Contains("48"))
         {
             Debug.WriteLine("Received message for routing.out.2.63");
         }
@@ -143,7 +145,7 @@ public class ApiClient
             return;
 
         string path = fullPath.Replace("/console/data/get/", "").TrimStart('/');
-                
+
         string valueStr = valElement.ToString();
 
         ParameterUpdated?.Invoke(new(path, valueStr));
@@ -178,32 +180,63 @@ public class ApiClient
             ArrayPool<byte>.Shared.Return(buffer);
         }
     }
-
-    private async Task<Parameter> GetDefForPath(string path)
+    public async Task<int> GetNumberOfEntries(string path)
     {
+        path = Uri.EscapeDataString(path);
+
         using var response = await _httpClient
-                           .GetAsync($"console/data/definitions2/{path}")
+                           .GetAsync($"console/data/paths/{path}")
                            .ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var doc = JsonDocument.Parse(json);
+        //need to count how many children live in the "child" node
+        doc.RootElement.TryGetProperty("child", out var childProp);
+        int count = childProp.EnumerateObject().Count();
+        return count;
 
-        await using var stream = await response.Content
-            .ReadAsStreamAsync()
-            .ConfigureAwait(false);
+    }
+    public async Task<Parameter> GetDefForPath(string path)
+    {
+        try
+        {
+            path = Uri.EscapeDataString(path);
 
-        var param = await JsonSerializer
-            .DeserializeAsync<Parameter>(stream)
-            .ConfigureAwait(false);
+            using var response = await _httpClient
+                               .GetAsync($"console/data/definitions2/{path}")
+                               .ConfigureAwait(false);
 
-        param.Path = path;
-        return param;
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content
+                .ReadAsStreamAsync()
+                .ConfigureAwait(false);
+
+            var cont = await response.Content.ReadAsStringAsync();
+
+            var param = await JsonSerializer
+                .DeserializeAsync<Parameter>(stream)
+                .ConfigureAwait(false);
+
+            param.Path = path;
+            return param;
+        }
+        catch (HttpRequestException ex)
+        {
+            Debug.WriteLine($"Failed to get definition for {path}: {ex.Message}");
+            return null;
+        }
     }
 
-   
+
     public event Action<ParameterUpdate>? ParameterUpdated;
 
     public async Task Subscribe(string path)
     {
+        path = Uri.EscapeDataString(path);
+
+
         if (_websocket.State != WebSocketState.Open)
             await ConnectWebsocket();
         var subscription = new
@@ -229,17 +262,30 @@ public class ApiClient
 
     public async Task<string?> GetValue(string path, string format = "val")
     {
-        var response = await _httpClient.GetAsync($"/console/data/get/{path}/{format}").ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var json = JsonDocument.Parse(content);
-        json.RootElement.TryGetProperty("value", out var val);
+        try
+        {
+            path = Uri.EscapeDataString(path);
 
-        return val.ToString();
+            var response = await _httpClient.GetAsync($"/console/data/get/{path}/{format}").ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var json = JsonDocument.Parse(content);
+            json.RootElement.TryGetProperty("value", out var val);
+
+            return val.ToString();
+        }
+        catch (HttpRequestException ex)
+        {
+            Debug.WriteLine($"Failed to get value for {path}: {ex.Message}");
+            return null;
+        }
     }
-
     public async Task SendUpdate(string path, object value, string format = "val")
     {
+        if (value == null)
+            throw new ArgumentNullException(nameof(value));
+        path = Uri.EscapeDataString(path);
+
         var body = JsonSerializer.Serialize(new { format = format, value = value });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync($"/console/data/set/{path}/{format}", content).ConfigureAwait(false);
@@ -316,6 +362,8 @@ public class ApiClient
 
     public async Task SetValue(Parameter parameter, object value)
     {
+        if (value == null)
+            throw new ArgumentNullException(nameof(value));
         await SendUpdate(parameter.Path, value).ConfigureAwait(false);
         parameter.Value = value;
     }

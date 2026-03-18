@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MixingStationRemote"
-        mc:Ignorable="d" PreviewKeyDown="Window_PreviewKeyDown"
+        mc:Ignorable="d" PreviewKeyDown="Window_PreviewKeyDown" PreviewKeyUp="Window_PreviewKeyUp"
         Title="MainWindow" Height="450" Width="800" Loaded="Window_Loaded">
 	<Grid Focusable="False">
 		<Grid.RowDefinitions>
@@ -89,7 +89,7 @@
 		</Menu>
 		
 
-		<StackPanel KeyboardNavigation.TabNavigation="Cycle" VerticalAlignment="Top" HorizontalAlignment="Center" DataContext="{Binding ElementName=ChannelSelector, Path=SelectedItem}" Grid.Row="2" Orientation="Horizontal">
+		<StackPanel x:Name="mainPanel" VerticalAlignment="Top" HorizontalAlignment="Center" Grid.Row="2" Orientation="Vertical">
 			<StackPanel.ContextMenu>
 				<ContextMenu x:Name="contextMenu" Placement="Center">
 					<local:CustomMenuItem x:Name="preampMenuItem" Header="Preamp"/>
@@ -119,9 +119,14 @@
 					</local:CustomMenuItem>-->
 				</ContextMenu>
 			</StackPanel.ContextMenu>
-			<StackPanel x:Name="mixPanel" Orientation="Horizontal">
-				
-			</StackPanel>
-		</StackPanel>
+            <StackPanel x:Name="mixPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="preampPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="eqPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="compressorPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="gatePanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="limiterPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="sendsPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="muteGroupsPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+        </StackPanel>
 	</Grid>
 </Window>

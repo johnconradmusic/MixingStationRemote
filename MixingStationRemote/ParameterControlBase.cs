@@ -37,7 +37,8 @@ public abstract class ParameterControlBase : UserControl
         set => SetValue(ClientProperty, value);
     }
 
-    public string Caption => Parameter?.Definition?.Title ?? Parameter?.Name ?? Parameter?.Path ?? string.Empty;
+    public string Title { get; set; }
+    public string Caption => Title ?? Parameter?.Definition?.Title ?? Parameter?.Name ?? Parameter?.Path ?? string.Empty;
 
     public string Path => Parameter?.Path ?? string.Empty;
 
@@ -156,10 +157,10 @@ public abstract class ParameterControlBase : UserControl
             return "unknown";
 
         if (value is double d)
-            return d.ToString("0.###", CultureInfo.InvariantCulture);
+            return d.ToString("0.#", CultureInfo.InvariantCulture);
 
         if (value is float f)
-            return f.ToString("0.###", CultureInfo.InvariantCulture);
+            return f.ToString("0.#", CultureInfo.InvariantCulture);
 
         return value.ToString() ?? "unknown";
     }

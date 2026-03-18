@@ -85,4 +85,15 @@ public sealed class ParameterDefinition
 
     [JsonPropertyName("type")]
     public string? Type { get; set; }
+
+    [JsonPropertyName("enums")]
+    public List<EnumEntry> EnumEntries { get; set; }
+}
+
+public sealed class EnumEntry
+{
+    [JsonPropertyName("id")]
+    public int ID { get; set; }
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
 }
