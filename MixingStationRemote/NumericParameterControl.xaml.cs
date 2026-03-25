@@ -16,7 +16,10 @@ public partial class NumericParameterControl : ParameterControlBase
             Dispatcher.BeginInvoke(RefreshFromParameter);
             return;
         }
+        if (IsReady)
+        {
 
+        }
         label.Text = Caption;
         textBox.Text = IsReady ? ValueString : "Loading...";
     }
@@ -37,9 +40,11 @@ public partial class NumericParameterControl : ParameterControlBase
 
         if (e.Key == Key.Delete)
         {
-            e.Handled = true;
-            await SetValueFromUser(Default);
-            return;
+            if (Default != null)
+            {
+                e.Handled = true;
+                await SetValueFromUser(Default);
+            }
         }
 
         if (e.Key == Key.Up)

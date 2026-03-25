@@ -192,9 +192,18 @@ public class ApiClient
         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         var doc = JsonDocument.Parse(json);
         //need to count how many children live in the "child" node
-        doc.RootElement.TryGetProperty("child", out var childProp);
-        int count = childProp.EnumerateObject().Count();
-        return count;
+        if (!doc.RootElement.TryGetProperty("child", out var childProp))
+        {
+            doc.RootElement.TryGetProperty("val", out childProp);
+
+            int count = childProp.GetArrayLength();
+            return count;
+        }
+        else
+        {
+            int count = childProp.EnumerateObject().Count();
+            return count;
+        }
 
     }
     public async Task<Parameter> GetDefForPath(string path)

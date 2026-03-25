@@ -23,12 +23,49 @@ public class CustomMenuItem : MenuItem
         PreviewKeyDown += CustomMenuItem_PreviewKeyDown;
 
     }
-
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        if (sender is ContextMenu menu)
+            menu.Focus();
+    }
     private void CustomMenuItem_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter || e.Key == Key.Space)
+        if (IsCheckable)
         {
-            IsChecked = !IsChecked;
+            if (e.Key == Key.Enter || e.Key == Key.Space)
+            {
+                IsChecked = !IsChecked;
+                e.Handled = true;
+                return;
+            }
+
+            else
+            {
+                OnClick();
+                return;
+            }
+        }
+
+        if (sender is not CustomMenuItem m || m.Parent is not CustomMenuItem menu)
+            return;
+
+        if (e.Key < Key.A || e.Key > Key.Z)
+            return;
+
+        char typed = e.Key.ToString()[0];
+
+
+        var items = menu.Items
+            .OfType<CustomMenuItem>()
+            .Where(i => !string.IsNullOrEmpty(i.Header?.ToString()))
+            .ToList();
+
+        var match = items.FirstOrDefault(i =>
+            i.Header!.ToString()!.StartsWith(typed.ToString(), StringComparison.OrdinalIgnoreCase));
+
+        if (match != null)
+        {
+            match.Focus();
             e.Handled = true;
         }
     }
@@ -37,12 +74,15 @@ public class CustomMenuItem : MenuItem
     {
         if (IsCheckable)
         {
-            bool checkState = bool.Parse(await Client.GetValue(Path));
-            if (Inverted)
+            if (Path != null)
             {
-                checkState = !checkState;
+                bool checkState = bool.Parse(await Client.GetValue(Path));
+                if (Inverted)
+                {
+                    checkState = !checkState;
+                }
+                IsChecked = checkState;
             }
-            IsChecked = checkState;
         }
 
     }

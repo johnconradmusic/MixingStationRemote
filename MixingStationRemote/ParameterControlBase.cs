@@ -46,7 +46,7 @@ public abstract class ParameterControlBase : UserControl
 
     public double Max => Parameter?.Definition?.Max ?? 1.0;
 
-    public double Default => Min;
+    public object Default { get; set; }
 
     public bool IsReady => Parameter?.IsReady == true;
 
@@ -161,6 +161,9 @@ public abstract class ParameterControlBase : UserControl
 
         if (value is float f)
             return f.ToString("0.#", CultureInfo.InvariantCulture);
+
+        if(value is string s && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            return parsed.ToString("0.#", CultureInfo.InvariantCulture);
 
         return value.ToString() ?? "unknown";
     }

@@ -9,6 +9,8 @@ public partial class BooleanParameterControl : ParameterControlBase
         InitializeComponent();
     }
 
+    public bool Invert { get; set; }
+
     protected override void RefreshFromParameter()
     {
         if (!Dispatcher.CheckAccess())
@@ -25,7 +27,7 @@ public partial class BooleanParameterControl : ParameterControlBase
             return;
         }
 
-        var b = ToBool(Parameter?.Value);
+        var b = ToBool(Parameter?.Value, Invert);
         textBox.Text = b ? "On" : "Off";
 
         if (IsFocused)
@@ -34,13 +36,13 @@ public partial class BooleanParameterControl : ParameterControlBase
 
     protected override void AnnounceValue()
     {
-        var b = ToBool(Parameter?.Value);
+        var b = ToBool(Parameter?.Value, Invert);
         Speech.SpeechManager.Say(b ? "On" : "Off");
     }
 
     protected override void AnnounceFocus()
     {
-        var b = ToBool(Parameter?.Value);
+        var b = ToBool(Parameter?.Value, Invert);
         Speech.SpeechManager.Say($"{Caption} ({(b ? "On" : "Off")})");
     }
 
@@ -57,24 +59,52 @@ public partial class BooleanParameterControl : ParameterControlBase
         else if (e.Key == Key.Down)
         {
             e.Handled = true;
-            await SetValueFromUser(false);
+            if(Invert)
+                await SetValueFromUser(true);
+            else
+                await SetValueFromUser(false);
         }
         else if (e.Key == Key.Up)
         {
             e.Handled = true;
-            await SetValueFromUser(true);
+            if (Invert)
+                await SetValueFromUser(false);
+            else
+                await SetValueFromUser(true);
+        }
+        else if (e.Key == Key.Delete)
+        {
+            if (Default != null)
+            {
+                e.Handled = true;
+                await SetValueFromUser(Default);
+            }
+
         }
     }
 
-    private static bool ToBool(object? value)
+    private static bool ToBool(object? value, bool invert)
     {
-        return value switch
+        if (invert)
         {
-            bool b => b,
-            string s when bool.TryParse(s, out var parsed) => parsed,
-            int i => i != 0,
-            long l => l != 0,
-            _ => false
-        };
+            return value switch
+            {
+                bool b => !b,
+                string s when bool.TryParse(s, out var parsed) => !parsed,
+                int i => i == 0,
+                long l => l == 0,
+                _ => false
+            };
+
+        }
+        else
+            return value switch
+            {
+                bool b => b,
+                string s when bool.TryParse(s, out var parsed) => parsed,
+                int i => i != 0,
+                long l => l != 0,
+                _ => false
+            };
     }
 }

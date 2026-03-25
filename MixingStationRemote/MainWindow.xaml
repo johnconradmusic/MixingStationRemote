@@ -14,7 +14,8 @@
 		</Grid.RowDefinitions>
 		<Menu IsTabStop="False" Grid.Row="0">
 			<local:CustomMenuItem Header="System">
-				<local:CustomMenuItem x:Name="exitMenuItem" Header="Exit" Click="exitMenuItem_Click"/>
+                <local:CustomMenuItem x:Name="disconnectMenuItem"  Header="Disconnect" Click="disconnectMenuItem_Click"/>
+                <local:CustomMenuItem x:Name="exitMenuItem" Header="Exit" Click="exitMenuItem_Click"/>
 			</local:CustomMenuItem>
 			<!--<local:CustomMenuItem Header="Scene">
 				<local:CustomMenuItem Click="LoadSceneMenuButton_Click" x:Name="LoadSceneMenuButton" Header="Load Scene..."/>
@@ -92,7 +93,6 @@
 		<StackPanel x:Name="mainPanel" VerticalAlignment="Top" HorizontalAlignment="Center" Grid.Row="2" Orientation="Vertical">
 			<StackPanel.ContextMenu>
 				<ContextMenu x:Name="contextMenu" Placement="Center">
-					<local:CustomMenuItem x:Name="preampMenuItem" Header="Preamp"/>
 					<!--<local:CustomMenuItem Header="Mute" IsCheckable="True" IsChecked="{Binding mute}" />
 					<local:CustomMenuItem Header="Solo" IsCheckable="True" IsChecked="{Binding solo}" />
 					<local:CustomMenuItem Header="Phase Invert" IsCheckable="True" IsChecked="{Binding polarity}" />
@@ -117,14 +117,16 @@
 						<local:CustomMenuItem Header="Name" IsCheckable="True" IsChecked="{Binding link_ch_name}" />
 						<local:CustomMenuItem Header="Insert FX" IsCheckable="True" IsChecked="{Binding link_ins_fx}" />
 					</local:CustomMenuItem>-->
-				</ContextMenu>
+				</ContextMenu>                
 			</StackPanel.ContextMenu>
+            
             <StackPanel x:Name="mixPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="preampPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="eqPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="compressorPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="gatePanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="limiterPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
+            <StackPanel x:Name="receivesPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="sendsPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="muteGroupsPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
         </StackPanel>

@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Windows;
-
+using System.Windows.Controls;
 using MixingStationRemote;
 namespace MixingStationRemote;
 public partial class ConnectionWindow : Window
@@ -17,6 +17,7 @@ public partial class ConnectionWindow : Window
             await Task.Delay(500);
             state = await _client.GetAppState();
         }
+        await Task.Delay(2000);
         await LoadResults();
     }
 
@@ -39,13 +40,13 @@ public partial class ConnectionWindow : Window
             return;
         if (cmbModels.SelectedItem is not ConsoleGroup console)
             return;
-        _client.ConnectToConsole(d, console);
+        await _client.ConnectToConsole(d, console);
         await Task.Delay(250);
         bool hasAnnouncedConnecting = false;
         var state = await _client.GetAppState();
         while (state != null && state.state != "connected")
         {
-            if(state.state == "connecting" && !hasAnnouncedConnecting)
+            if (state.state == "connecting" && !hasAnnouncedConnecting)
             {
                 Speech.SpeechManager.Say("Connecting to mixer. Please wait.");
                 hasAnnouncedConnecting = true;
@@ -87,6 +88,40 @@ public partial class ConnectionWindow : Window
 
     private void cmbModels_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        btnSearch.IsEnabled = true;
+        if(e.AddedItems.Count == 0)
+            return;
+        if (e.AddedItems[0] is ConsoleGroup console)
+        {
+            Speech.SpeechManager.Say(console.manufacturer + " " + console.name);
+            btnSearch.IsEnabled = true;
+        }
+        if (e.AddedItems[0] is MixerDevice mixer)
+        {
+            Speech.SpeechManager.Say(mixer.name);
+        }
+
+
+    }
+
+    private void btn_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn)
+            Speech.SpeechManager.Say(btn.Content.ToString());
+
+        if (sender is ComboBox cmb)
+        {
+            if (cmb.SelectedItem == null)
+                cmb.SelectedIndex = 0;
+            Speech.SpeechManager.Say(cmb.SelectedItem?.ToString() ?? "");
+        }
+
+        if (sender is ListBox lst)
+        {
+            if (lst.SelectedItem == null)
+                lst.SelectedIndex = 0;
+            Speech.SpeechManager.Say(lst.SelectedItem.ToString());
+
+        }
+
     }
 }

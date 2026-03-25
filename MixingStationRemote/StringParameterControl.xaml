@@ -1,0 +1,12 @@
+﻿<local:ParameterControlBase x:Class="MixingStationRemote.StringParameterControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:MixingStationRemote"
+             PreviewKeyDown="UserControl_PreviewKeyDown"
+             Focusable="True" Width="50" Height="32" IsTabStop="True">
+    <StackPanel>
+        <TextBlock x:Name="label" Focusable="False" FontSize="8" Text="{Binding Caption}"/>
+        <TextBox x:Name="editor"
+                 LostFocus="Editor_LostFocus" Background="LightSteelBlue" Focusable="False" />
+    </StackPanel>
+</local:ParameterControlBase>

@@ -4,15 +4,15 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MixingStationRemote"
-        mc:Ignorable="d"
+        mc:Ignorable="d" AutomationProperties.LiveSetting="Assertive"
         Title="ConnectionWindow" Height="450" Width="800" Loaded="Window_Loaded">
     <StackPanel>
-		<TextBox x:Name="txtStationUrl" Text="http://localhost:8080" />
-		<!-- user types the mixing-station address -->
-		<ComboBox x:Name="cmbModels" DisplayMemberPath="name" IsEnabled="False" SelectionChanged="cmbModels_SelectionChanged"/>
-		<Button x:Name="btnSearch" Content="Search" IsEnabled="False" Click="btnSearch_Click"/>
-		<Button x:Name="btnRefresh" Content="Refresh Results" Click="btnRefresh_Click"/>
-		<ListBox x:Name="lstMixers" DisplayMemberPath="name" />
-		<Button x:Name="btnConnect" Content="Connect" IsEnabled="False" Click="btnConnect_Click"/>
-	</StackPanel>
+        <TextBox x:Name="txtStationUrl" IsReadOnly="True" Focusable="False" Text="http://localhost:8080" />
+        <!-- user types the mixing-station address -->
+        <ComboBox x:Name="cmbModels" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Mixer Model ComboBox" DisplayMemberPath="name" IsEnabled="False" SelectionChanged="cmbModels_SelectionChanged"/>
+        <Button x:Name="btnSearch" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Search Button" Content="Search" IsEnabled="False" Click="btnSearch_Click"/>
+        <Button x:Name="btnRefresh" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Refresh Button" Content="Refresh Results" Click="btnRefresh_Click"/>
+        <ListBox x:Name="lstMixers" AutomationProperties.LiveSetting="Assertive"  AutomationProperties.Name="Mixer Search Results ListBox" DisplayMemberPath="name" SelectionChanged="cmbModels_SelectionChanged" />
+        <Button x:Name="btnConnect" IsDefault="True" AutomationProperties.LiveSetting="Assertive"  AutomationProperties.Name="Connect Button" Content="Connect" IsEnabled="False" Click="btnConnect_Click"/>
+    </StackPanel>
 </Window>

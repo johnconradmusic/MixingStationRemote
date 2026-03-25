@@ -29,8 +29,8 @@ public partial class MainWindow : Window
         await BuildCurrentChannelControls();
     }
 
-    List<StackPanel> sectionPanels = new List<StackPanel>();
-    StackPanel currentPanel;
+    string lastControlPath;
+
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _client.ParameterUpdated += OnParameterValueUpdatedFromWs;
@@ -77,21 +77,52 @@ public partial class MainWindow : Window
     {
         createdControls.Clear();
 
-        await BuildMixSection();
+        await BuildChannelSection();
         await BuildPreampSection();
         await BuildEqSection();
         await BuildCompressorSection();
         await BuildGateSection();
         await BuildLimiterSection();
+        await BuildReceivesSection();
         await BuildSendsSection();
         await BuildMuteGroupsSection();
 
+        _headings[0].Focus();
+
+    }
+
+    private async Task BuildReceivesSection()
+    {
+        receivesPanel.Children.Clear();
+        CreateHeading(receivesPanel, "Receives");
+        var incoming = matrix.GetIncoming(selectedChannel);
+        int i = 0;
+        foreach (var source in incoming)
+        {
+            var name = await GetChannelName(source);
+            await AddParameterControl(receivesPanel, $"receive from {name}", $"ch.{source}.mix.sends.{i++}.lvl", _client, 0);
+            //bool sourceMixIsLinked = await _client.GetValue($"ch.{source}.link.linked") == "true";
+        }
     }
 
     private async Task BuildMuteGroupsSection()
     {
         muteGroupsPanel.Children.Clear();
         CreateHeading(muteGroupsPanel, "Mute Groups");
+        var groups = await _client.GetNumberOfEntries($"ch.{selectedChannel}.grp.mute");
+        var chanName = await GetChannelName(selectedChannel);
+        for (int i = 0; i < groups; i++)
+        {
+            var groupName = await _client.GetValue($"muteGroups.{i}.name");
+            await AddToggleControl(muteGroupsPanel, $"assign {chanName} to {groupName}", $"ch.{selectedChannel}.grp.mute.{i}", _client);
+        }
+
+        CreateHeading(muteGroupsPanel, "Mute Group Masters");
+        for (int i = 0; i < groups; i++)
+        {
+            var groupName = await _client.GetValue($"muteGroups.{i}.name");
+            await AddToggleControl(muteGroupsPanel, $"{groupName}, mute", $"muteGroups.{i}.mute", _client);
+        }
     }
 
     private async Task BuildSendsSection()
@@ -140,7 +171,7 @@ public partial class MainWindow : Window
         CreateHeading(compressorPanel, "Compressor");
 
         await AddToggleControl(compressorPanel, "Compressor enable", $"ch.{selectedChannel}.dyn.on", _client);
-        await AddParameterControl(compressorPanel, "Ratio", $"ch.{selectedChannel}.dyn.ratio", _client);
+        await AddParameterControl(compressorPanel, "Ratio", $"ch.{selectedChannel}.dyn.ratio", _client, 4);
         await AddParameterControl(compressorPanel, "Threshold", $"ch.{selectedChannel}.dyn.thr", _client);
         await AddParameterControl(compressorPanel, "Gain", $"ch.{selectedChannel}.dyn.gain", _client);
         await AddToggleControl(compressorPanel, "Auto Time", $"ch.{selectedChannel}.dyn.autoTime", _client);
@@ -148,7 +179,7 @@ public partial class MainWindow : Window
         await AddParameterControl(compressorPanel, "Release", $"ch.{selectedChannel}.dyn.release", _client);
         await AddToggleControl(compressorPanel, "Soft Knee", $"ch.{selectedChannel}.dyn.softKnee", _client);
         await AddParameterControl(compressorPanel, "Knee", $"ch.{selectedChannel}.dyn.knee", _client);
-        //   await AddParameterControl(compressorPanel, "Filter", $"ch.{selectedChannel}.dyn.knee", _client);
+        //TODO: filter sidechain
 
     }
 
@@ -166,9 +197,9 @@ public partial class MainWindow : Window
 
             await AddToggleControl(eqPanel, $"Band {i + 1} enable", $"ch.{selectedChannel}.peq.bands.{i}.on", _client);
             await AddParameterControl(eqPanel, "Frequency", $"ch.{selectedChannel}.peq.bands.{i}.freq", _client);
-            await AddParameterControl(eqPanel, "Gain", $"ch.{selectedChannel}.peq.bands.{i}.gain", _client);
+            await AddParameterControl(eqPanel, "Gain", $"ch.{selectedChannel}.peq.bands.{i}.gain", _client, 0);
             await AddParameterControl(eqPanel, "Q", $"ch.{selectedChannel}.peq.bands.{i}.q", _client);
-            //Add List Control for type (low shelf, high shelf, bell, etc)
+            await AddEnumParameterControl(eqPanel, "Type", $"ch.{selectedChannel}.peq.bands.{i}.type", _client);
         }
     }
 
@@ -179,29 +210,61 @@ public partial class MainWindow : Window
         await AddParameterControl(preampPanel, "trim", $"ch.{selectedChannel}.headamp.gain", _client);
         await AddParameterControl(preampPanel, "hpf", $"ch.{selectedChannel}.preamp.filter.0.freq", _client);
         await AddToggleControl(preampPanel, "phase invert", $"ch.{selectedChannel}.preamp.inv", _client);
-
     }
 
-    private async Task BuildMixSection()
+
+
+    private async Task BuildChannelSection()
     {
         mixPanel.Children.Clear();
         CreateHeading(mixPanel, "Channel");
         if (selectedMix == -1)
         {
-            await AddParameterControl(mixPanel, "level", $"ch.{selectedChannel}.mix.lvl", _client);
-            await AddParameterControl(mixPanel, "pan", $"ch.{selectedChannel}.mix.pan", _client);
+            await AddParameterControl(mixPanel, "level", $"ch.{selectedChannel}.mix.lvl", _client, 0);
+            await AddParameterControl(mixPanel, "pan", $"ch.{selectedChannel}.mix.pan", _client, 0);
+            await AddToggleControl(mixPanel, "mute", $"ch.{selectedChannel}.mix.on", _client, true);
+            await AddToggleControl(mixPanel, "link", $"ch.{selectedChannel}.link.linked", _client);
             await AddToggleControl(mixPanel, "solo", $"ch.{selectedChannel}.solo", _client);
+            await AddStringControl(mixPanel, "name", $"ch.{selectedChannel}.cfg.name", _client);
+            await AddEnumParameterControl(mixPanel, "input group select", $"ch.{selectedChannel}.cfg.srcSel", _client);
+            string? s = await _client.GetValue($"ch.{selectedChannel}.cfg.srcSel");
+            if (s != null)
+            {
+                int val = (int)double.Parse(s);
+                await AddEnumParameterControl(mixPanel, "input select", $"ch.{selectedChannel}.routing.srcCfg.{val}", _client);
+            }
         }
         else
         {
-            await AddParameterControl(mixPanel, "level", $"ch.{selectedChannel}.mix.sends.{selectedMix}.lvl", _client);
-            await AddParameterControl(mixPanel, "pan", $"ch.{selectedChannel}.mix.sends.{selectedMix}.pan", _client);
+            await AddParameterControl(mixPanel, "level", $"ch.{selectedChannel}.mix.sends.{selectedMix}.lvl", _client, 0);
+            await AddParameterControl(mixPanel, "pan", $"ch.{selectedChannel}.mix.sends.{selectedMix}.pan", _client, 0);
         }
     }
 
     Dictionary<string, FrameworkElement> createdControls = new();
 
-    private async Task AddParameterControl(Panel parent, string name, string path, ApiClient client)
+    private async Task AddStringControl(Panel parent, string name, string path, ApiClient client)
+    {
+        var param = await client.GetDefForPath(path);
+        if (param == null)
+        {
+            Debug.WriteLine($"Parameter {path} not found");
+            return;
+        }
+        var control = new StringParameterControl
+        {
+            Parameter = param,
+            Client = client,
+            Title = name
+        };
+        parent.Children.Add(control);
+        control.UserValueChanged += async (_, value) =>
+            await _client.SendUpdate(path, value);
+        //await _client.Subscribe(path);
+        createdControls[name] = control;
+    }
+
+    private async Task AddParameterControl(Panel parent, string name, string path, ApiClient client, double? defaultValue = null)
     {
 
         var param = await client.GetDefForPath(path);
@@ -216,7 +279,8 @@ public partial class MainWindow : Window
         {
             Parameter = param,
             Client = client,
-            Title = name
+            Title = name,
+            Default = defaultValue
         };
 
         parent.Children.Add(control);
@@ -228,7 +292,29 @@ public partial class MainWindow : Window
 
         createdControls[name] = control;
     }
-    private async Task AddToggleControl(Panel parent, string name, string path, ApiClient client)
+
+    private async Task AddEnumParameterControl(Panel parent, string name, string path, ApiClient client)
+    {
+        var param = await client.GetDefForPath(path);
+        if (param == null)
+        {
+            Debug.WriteLine($"Parameter {path} not found");
+            return;
+        }
+        var control = new EnumParameterControl
+        {
+            Parameter = param,
+            Client = client,
+            Title = name
+        };
+        parent.Children.Add(control);
+        control.UserValueChanged += async (_, value) =>
+            await _client.SendUpdate(path, value);
+        //await _client.Subscribe(path);
+        createdControls[name] = control;
+    }
+
+    private async Task AddToggleControl(Panel parent, string name, string path, ApiClient client, bool inverted = false, bool? defaultValue = null)
     {
         var param = await client.GetDefForPath(path);
 
@@ -242,7 +328,9 @@ public partial class MainWindow : Window
         {
             Parameter = param,
             Client = client,
-            Title = name
+            Title = name,
+            Invert = inverted,
+            Default = defaultValue
         };
 
         //     if (param.Definition.Title == null)
@@ -287,7 +375,8 @@ public partial class MainWindow : Window
                 e.Handled = true;
             }
         }
-        if (Keyboard.FocusedElement is CustomMenuItem)
+
+        if (Keyboard.FocusedElement is CustomMenuItem or TextBox)
         {
             return;
         }
@@ -428,7 +517,6 @@ public partial class MainWindow : Window
         //	else
         //		new EQ4ToolWindow(_channel).ShowDialog();
         //};
-        //shortcutActions[Key.C] = (s, e) => new CompToolWindow(_channel).ShowDialog();
         //shortcutActions[Key.A] = (s, e) => new SendsView(_channel, blindViewModel).ShowDialog();
         shortcutActions[Key.X] = async (s, e) =>
         {
@@ -545,6 +633,7 @@ public partial class MainWindow : Window
 
     private async Task SelectChannel(int channel)
     {
+
         selectedChannel = channel;
         await BuildCurrentChannelControls();
         BuildCurrentChannelContextMenu();
@@ -554,11 +643,27 @@ public partial class MainWindow : Window
     private async void BuildCurrentChannelContextMenu()
     {
         contextMenu.Items.Clear();
-        await CreateMenuItem($"ch.{selectedChannel}.mix.on", "Mute", true, true);
-        await CreateMenuItem($"ch.{selectedChannel}.solo", "Solo", true);
-        await CreateMenuItem($"ch.{selectedChannel}.preamp.+48v", "Phantom", true);
-        await CreateMenuItem($"ch.{selectedChannel}.preamp.inv", "Phase Invert", true);
-        await CreateMenuItem($"ch.{selectedChannel}.link.linked", "Stereo Link", true);
+        await CreateMenuItem(contextMenu.Items, $"ch.{selectedChannel}.mix.on", "Mute", true, true);
+        await CreateMenuItem(contextMenu.Items, $"ch.{selectedChannel}.solo", "Solo", true);
+        await CreateMenuItem(contextMenu.Items, $"ch.{selectedChannel}.preamp.+48v", "Phantom", true);
+        await CreateMenuItem(contextMenu.Items, $"ch.{selectedChannel}.preamp.inv", "Phase Invert", true);
+        await CreateMenuItem(contextMenu.Items, $"ch.{selectedChannel}.link.linked", "Stereo Link", true);
+
+        contextMenu.Items.Add(new Separator());
+        var channelsSubmenu = new MenuItem { Header = "Channels" };
+        for (int i = 0; i < channelCount; i++)
+        {
+            var name = await GetChannelName(i);
+            var item = new CustomMenuItem { Header = name, IsCheckable = false };
+            int channelIndex = i; // capture loop variable
+            item.Click += async (s, e) =>
+            {
+                contextMenu.IsOpen = false;
+                await SelectChannel(channelIndex);
+            };
+            channelsSubmenu.Items.Add(item);
+        }
+        contextMenu.Items.Add(channelsSubmenu);
     }
 
     private async Task<string> GetChannelName(int i)
@@ -567,14 +672,14 @@ public partial class MainWindow : Window
         return name ?? $"Channel {i + 1}";
     }
 
-    private async Task CreateMenuItem(string path, string header, bool isCheckable = false, bool inverted = false)
+    private async Task<CustomMenuItem> CreateMenuItem(ItemCollection parent, string path, string header, bool isCheckable = false, bool inverted = false)
     {
         var param = await _client.GetDefForPath(path);
 
         if (param == null)
         {
             Debug.WriteLine($"Parameter {path} not found");
-            return;
+            return null;
         }
 
         var item = new CustomMenuItem
@@ -585,7 +690,8 @@ public partial class MainWindow : Window
             Inverted = inverted,
             Client = _client
         };
-        contextMenu.Items.Add(item);
+        parent.Add(item);
+        return item;
     }
 
     public int IncrementToNextMultipleOfEight(int value)
@@ -674,6 +780,14 @@ public partial class MainWindow : Window
         }
 
         return false;
+    }
+
+    private async void disconnectMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        await _client.Disconnect();
+        await Task.Delay(500); //give some time to close connection properly before opening new window
+        new ConnectionWindow().Show();
+        Close();
     }
 }
 
