@@ -17,6 +17,8 @@ public readonly record struct ParameterUpdate(string Path, string Value);
 
 public class ApiClient
 {
+    private const string DefaultBaseUrl = "http://localhost:8080/";
+
     private readonly HttpClient _httpClient = new();
     private readonly ClientWebSocket _websocket = new();
     private Task? _receiveLoop;
@@ -54,10 +56,8 @@ public class ApiClient
         var body = JsonSerializer.Serialize(new { consoleId = model });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync("app/mixers/search", content).ConfigureAwait(false);
-        var cont = await response.Content.ReadAsStringAsync();
-        await Task.Delay(500);
-
         response.EnsureSuccessStatusCode();
+        await Task.Delay(500);
     }
 
     public async Task Disconnect()
@@ -79,7 +79,7 @@ public class ApiClient
         var body = JsonSerializer.Serialize(new { consoleId = console.consoleId, ip = device.ip });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync("app/mixers/connect", content).ConfigureAwait(false);
-        var responseContent = response.Content.ReadAsStringAsync();
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<MixerInfo> GetCurrentMixer()
@@ -98,7 +98,11 @@ public class ApiClient
 
         _cts = new CancellationTokenSource();
 
-        await _websocket.ConnectAsync(new Uri("ws://localhost:8080"), _cts.Token);
+        var baseAddress = _httpClient.BaseAddress ?? new Uri(DefaultBaseUrl);
+        var wsScheme = baseAddress.Scheme == "https" ? "wss" : "ws";
+        var wsUri = new Uri($"{wsScheme}://{baseAddress.Host}:{baseAddress.Port}");
+
+        await _websocket.ConnectAsync(wsUri, _cts.Token);
         await Subscribe("*");
         _receiveLoop = Task.Run(() => ReceiveLoopAsync(_cts.Token), _cts.Token);
     }
@@ -120,11 +124,6 @@ public class ApiClient
 
     private void ProcessWebSocketMessage(string json)
     {
-        if (json.Contains("48"))
-        {
-            Debug.WriteLine("Received message for routing.out.2.63");
-        }
-
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
@@ -222,8 +221,6 @@ public class ApiClient
                 .ReadAsStreamAsync()
                 .ConfigureAwait(false);
 
-            var cont = await response.Content.ReadAsStringAsync();
-
             var param = await JsonSerializer
                 .DeserializeAsync<Parameter>(stream)
                 .ConfigureAwait(false);
@@ -298,7 +295,7 @@ public class ApiClient
         var body = JsonSerializer.Serialize(new { format = format, value = value });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync($"/console/data/set/{path}/{format}", content).ConfigureAwait(false);
-        var responseContent = response.Content.ReadAsStringAsync();
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<AppState?> GetAppState()

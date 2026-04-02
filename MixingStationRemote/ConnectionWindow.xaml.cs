@@ -106,7 +106,7 @@ public partial class ConnectionWindow : Window
     private void btn_GotFocus(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn)
-            Speech.SpeechManager.Say(btn.Content.ToString());
+            Speech.SpeechManager.Say(btn.Content?.ToString() ?? "");
 
         if (sender is ComboBox cmb)
         {
@@ -119,7 +119,7 @@ public partial class ConnectionWindow : Window
         {
             if (lst.SelectedItem == null)
                 lst.SelectedIndex = 0;
-            Speech.SpeechManager.Say(lst.SelectedItem.ToString());
+            Speech.SpeechManager.Say(lst.SelectedItem?.ToString() ?? "");
 
         }
 

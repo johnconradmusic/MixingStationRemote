@@ -76,7 +76,9 @@ public class CustomMenuItem : MenuItem
         {
             if (Path != null)
             {
-                bool checkState = bool.Parse(await Client.GetValue(Path));
+                var rawValue = await Client.GetValue(Path);
+                if (!bool.TryParse(rawValue, out bool checkState))
+                    return;
                 if (Inverted)
                 {
                     checkState = !checkState;
@@ -89,7 +91,7 @@ public class CustomMenuItem : MenuItem
 
     private void CustomMenuItem_CheckedChanged(object sender, RoutedEventArgs e)
     {
-        if (IsChecked & IsFocused)
+        if (IsChecked && IsFocused)
         {
             Speech.SpeechManager.Say($"on");
         }
