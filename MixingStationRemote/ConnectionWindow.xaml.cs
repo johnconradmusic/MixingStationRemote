@@ -71,8 +71,8 @@ public partial class ConnectionWindow : Window
         if (state != null && state.state == "connected")
         {
             var mixer = await _client.GetCurrentMixer();
-
-            var result = MessageBox.Show($"Already connected to {mixer.currentModel}. Continue using this mixer?", "Info", MessageBoxButton.YesNo, MessageBoxImage.Information);
+            string mixerModel = mixer?.currentModel ?? "Unknown";
+            var result = MessageBox.Show($"Already connected to {mixerModel}. Continue using this mixer?", "Info", MessageBoxButton.YesNo, MessageBoxImage.Information);
             if (result == MessageBoxResult.No)
             {
                 await _client.Disconnect();

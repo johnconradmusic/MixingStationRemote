@@ -42,8 +42,6 @@ public class ApiClient
         r.EnsureSuccessStatusCode();
         var json = await r.Content.ReadAsStringAsync();
         ConsoleArchitecture = JsonSerializer.Deserialize<ConsoleArchitecture>(json) ?? new();
-        var str = ConsoleArchitecture.ToString();
-
         return ConsoleArchitecture;
     }
 
@@ -54,7 +52,6 @@ public class ApiClient
         var body = JsonSerializer.Serialize(new { consoleId = model });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync("app/mixers/search", content).ConfigureAwait(false);
-        var cont = await response.Content.ReadAsStringAsync();
         await Task.Delay(500);
 
         response.EnsureSuccessStatusCode();
@@ -79,7 +76,7 @@ public class ApiClient
         var body = JsonSerializer.Serialize(new { consoleId = console.consoleId, ip = device.ip });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync("app/mixers/connect", content).ConfigureAwait(false);
-        var responseContent = response.Content.ReadAsStringAsync();
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<MixerInfo> GetCurrentMixer()
@@ -88,7 +85,7 @@ public class ApiClient
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
         var mixerInfo = JsonSerializer.Deserialize<MixerInfo>(content);
-        return mixerInfo;
+        return mixerInfo ?? new MixerInfo();
     }
 
     public async Task ConnectWebsocket()
@@ -190,7 +187,7 @@ public class ApiClient
 
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         //need to count how many children live in the "child" node
         if (!doc.RootElement.TryGetProperty("child", out var childProp))
         {
@@ -222,13 +219,12 @@ public class ApiClient
                 .ReadAsStreamAsync()
                 .ConfigureAwait(false);
 
-            var cont = await response.Content.ReadAsStringAsync();
-
             var param = await JsonSerializer
                 .DeserializeAsync<Parameter>(stream)
                 .ConfigureAwait(false);
 
-            param.Path = path;
+            if (param != null)
+                param.Path = path;
             return param;
         }
         catch (HttpRequestException ex)
@@ -266,7 +262,7 @@ public class ApiClient
             new ArraySegment<byte>(Encoding.UTF8.GetBytes(json)),
             WebSocketMessageType.Text,
             true,
-            _cts.Token).ConfigureAwait(false);
+            _cts!.Token).ConfigureAwait(false);
     }
 
     public async Task<string?> GetValue(string path, string format = "val")
@@ -278,7 +274,7 @@ public class ApiClient
             var response = await _httpClient.GetAsync($"/console/data/get/{path}/{format}").ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            var json = JsonDocument.Parse(content);
+            using var json = JsonDocument.Parse(content);
             json.RootElement.TryGetProperty("value", out var val);
 
             return val.ToString();
@@ -298,7 +294,7 @@ public class ApiClient
         var body = JsonSerializer.Serialize(new { format = format, value = value });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync($"/console/data/set/{path}/{format}", content).ConfigureAwait(false);
-        var responseContent = response.Content.ReadAsStringAsync();
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<AppState?> GetAppState()

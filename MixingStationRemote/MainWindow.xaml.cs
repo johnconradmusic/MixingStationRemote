@@ -35,7 +35,7 @@ public partial class MainWindow : Window
     {
         _client.ParameterUpdated += OnParameterValueUpdatedFromWs;
         var mixer = await _client.GetCurrentMixer();
-        Title = mixer.currentModel + " - Mixing Station Remote";
+        Title = (mixer?.currentModel ?? "Unknown") + " - Mixing Station Remote";
 
 
         arc = await _client.GetConsoleArchitecture();
@@ -228,9 +228,9 @@ public partial class MainWindow : Window
             await AddStringControl(mixPanel, "name", $"ch.{selectedChannel}.cfg.name", _client);
             await AddEnumParameterControl(mixPanel, "input group select", $"ch.{selectedChannel}.cfg.srcSel", _client);
             string? s = await _client.GetValue($"ch.{selectedChannel}.cfg.srcSel");
-            if (s != null)
+            if (s != null && double.TryParse(s, out double parsedVal))
             {
-                int val = (int)double.Parse(s);
+                int val = (int)parsedVal;
                 await AddEnumParameterControl(mixPanel, "input select", $"ch.{selectedChannel}.routing.srcCfg.{val}", _client);
             }
         }
@@ -737,10 +737,11 @@ public partial class MainWindow : Window
 
     async void ToggleMuteGroup(int num)
     {
-        string mutegroupName = (string)await _client.GetValue($"muteGroups.{num}.name");
-        bool state = false;
+        string mutegroupName = await _client.GetValue($"muteGroups.{num}.name") ?? $"Mute Group {num}";
         string path = $"muteGroups.{num}.mute";
-        state = bool.Parse(await _client.GetValue(path));
+        string? stateStr = await _client.GetValue(path);
+        if (!bool.TryParse(stateStr, out bool state))
+            return;
         state = !state;
         await _client.SendUpdate(path, state);
         Speech.SpeechManager.Say($"Mute group {mutegroupName} " + (state ? "Muted" : "Unmuted"));

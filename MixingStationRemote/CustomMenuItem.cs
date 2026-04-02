@@ -76,12 +76,13 @@ public class CustomMenuItem : MenuItem
         {
             if (Path != null)
             {
-                bool checkState = bool.Parse(await Client.GetValue(Path));
-                if (Inverted)
+                string? value = await Client.GetValue(Path);
+                if (bool.TryParse(value, out bool checkState))
                 {
-                    checkState = !checkState;
+                    if (Inverted)
+                        checkState = !checkState;
+                    IsChecked = checkState;
                 }
-                IsChecked = checkState;
             }
         }
 
