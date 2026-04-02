@@ -258,11 +258,14 @@ public class ApiClient
 
         var json = JsonSerializer.Serialize(subscription);
 
+        if (_cts == null)
+            throw new InvalidOperationException("WebSocket is not connected. Call ConnectWebsocket first.");
+
         await _websocket.SendAsync(
             new ArraySegment<byte>(Encoding.UTF8.GetBytes(json)),
             WebSocketMessageType.Text,
             true,
-            _cts!.Token).ConfigureAwait(false);
+            _cts.Token).ConfigureAwait(false);
     }
 
     public async Task<string?> GetValue(string path, string format = "val")

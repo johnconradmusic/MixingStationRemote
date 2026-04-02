@@ -741,7 +741,10 @@ public partial class MainWindow : Window
         string path = $"muteGroups.{num}.mute";
         string? stateStr = await _client.GetValue(path);
         if (!bool.TryParse(stateStr, out bool state))
+        {
+            Speech.SpeechManager.Say($"Could not read state of mute group {mutegroupName}");
             return;
+        }
         state = !state;
         await _client.SendUpdate(path, state);
         Speech.SpeechManager.Say($"Mute group {mutegroupName} " + (state ? "Muted" : "Unmuted"));
