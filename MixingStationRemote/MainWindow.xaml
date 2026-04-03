@@ -9,7 +9,7 @@
 	<Grid Focusable="False">
 		<Grid.RowDefinitions>
 			<RowDefinition Height="20" />
-			<RowDefinition Height="20" />
+			<RowDefinition Height="Auto" />
 			<RowDefinition />
 		</Grid.RowDefinitions>
 		<Menu IsTabStop="False" Grid.Row="0">
@@ -90,6 +90,8 @@
 		</Menu>
 		
 
+		<Label x:Name="statusLabel" Grid.Row="1" Content="No channel selected" Focusable="False" FontStyle="Italic" />
+		<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
 		<StackPanel x:Name="mainPanel" VerticalAlignment="Top" HorizontalAlignment="Center" Grid.Row="2" Orientation="Vertical">
 			<StackPanel.ContextMenu>
 				<ContextMenu x:Name="contextMenu" Placement="Center">
@@ -130,5 +132,6 @@
             <StackPanel x:Name="sendsPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
             <StackPanel x:Name="muteGroupsPanel" HorizontalAlignment="Center" Orientation="Horizontal"/>
         </StackPanel>
+		</ScrollViewer>
 	</Grid>
 </Window>

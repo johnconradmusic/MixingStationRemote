@@ -7,8 +7,25 @@ public partial class ConnectionWindow : Window
 {
     private readonly ApiClient _client = new();
 
+    private void txtStationUrl_LostFocus(object sender, RoutedEventArgs e)
+    {
+        ApplyStationUrl();
+    }
+
+    private void ApplyStationUrl()
+    {
+        var url = txtStationUrl.Text.Trim();
+        if (!string.IsNullOrEmpty(url))
+        {
+            _client.SetDiscoveryBase(url);
+            var settings = new AppSettings { StationUrl = url };
+            settings.Save();
+        }
+    }
+
     private async void btnSearch_Click(object sender, RoutedEventArgs e)
     {
+        ApplyStationUrl();
         await _client.StartSearch(((ConsoleGroup)cmbModels.SelectedItem).consoleId);
         var state = await _client.GetAppState();
         while (state != null && state.state == "searching")
@@ -62,7 +79,9 @@ public partial class ConnectionWindow : Window
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        _client.SetDiscoveryBase(txtStationUrl.Text.Trim());
+        var settings = AppSettings.Load();
+        txtStationUrl.Text = settings.StationUrl;
+        _client.SetDiscoveryBase(settings.StationUrl);
         var models = await _client.GetSupportedMixerModels();
         cmbModels.ItemsSource = models.consoles;
         cmbModels.IsEnabled = true;
@@ -107,6 +126,9 @@ public partial class ConnectionWindow : Window
     {
         if (sender is Button btn)
             Speech.SpeechManager.Say(btn.Content?.ToString() ?? "");
+
+        if (sender is TextBox tb)
+            Speech.SpeechManager.Say(tb.Text);
 
         if (sender is ComboBox cmb)
         {
