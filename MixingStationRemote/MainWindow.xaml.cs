@@ -54,6 +54,8 @@ public partial class MainWindow : Window
     }
 
     private readonly List<Control> _headings = new();
+    private readonly Dictionary<string, Label> _sectionHeadings = new();
+    private readonly Dictionary<string, ParameterControlBase> _controlsByPath = new();
 
     private Label CreateHeading(Panel parent, string text)
     {
@@ -70,12 +72,16 @@ public partial class MainWindow : Window
         };
 
         _headings.Add(heading);
+        _sectionHeadings[text] = heading;
         parent.Children.Add(heading);
         return heading;
     }
     private async Task BuildCurrentChannelControls()
     {
         createdControls.Clear();
+        _controlsByPath.Clear();
+        _headings.Clear();
+        _sectionHeadings.Clear();
 
         await BuildChannelSection();
         await BuildPreampSection();
@@ -262,6 +268,7 @@ public partial class MainWindow : Window
             await _client.SendUpdate(path, value);
         //await _client.Subscribe(path);
         createdControls[name] = control;
+        _controlsByPath[path] = control;
     }
 
     private async Task AddParameterControl(Panel parent, string name, string path, ApiClient client, double? defaultValue = null)
@@ -291,6 +298,7 @@ public partial class MainWindow : Window
         //await _client.Subscribe(path);
 
         createdControls[name] = control;
+        _controlsByPath[path] = control;
     }
 
     private async Task AddEnumParameterControl(Panel parent, string name, string path, ApiClient client)
@@ -312,6 +320,7 @@ public partial class MainWindow : Window
             await _client.SendUpdate(path, value);
         //await _client.Subscribe(path);
         createdControls[name] = control;
+        _controlsByPath[path] = control;
     }
 
     private async Task AddToggleControl(Panel parent, string name, string path, ApiClient client, bool inverted = false, bool? defaultValue = null)
@@ -344,6 +353,7 @@ public partial class MainWindow : Window
         //await _client.Subscribe(path);
 
         createdControls[name] = control;
+        _controlsByPath[path] = control;
     }
     private void OnParameterValueUpdatedFromWs(ParameterUpdate p)
     {
@@ -353,12 +363,8 @@ public partial class MainWindow : Window
             return;
         }
 
-
-
-        //      if (double.TryParse(p.Value, out var num))
-        //	param.Value = num;
-        //else
-        //	param.Value = p.Value;
+        if (_controlsByPath.TryGetValue(p.Path, out var control) && control.Parameter != null)
+            control.Parameter.Value = p.Value;
     }
 
     private Dictionary<Key, RoutedEventHandler> shortcutActions = new Dictionary<Key, RoutedEventHandler>();
@@ -490,7 +496,7 @@ public partial class MainWindow : Window
 
         shortcutActions[Key.Escape] = async (s, e) => await SelectMix(-1);
 
-        shortcutActions[Key.V] = (s, e) => createdControls["level"].Focus();
+        shortcutActions[Key.V] = (s, e) => { if (createdControls.TryGetValue("level", out var ctrl)) ctrl.Focus(); };
 
         shortcutActions[Key.H] = (s, e) =>
         {
@@ -500,9 +506,9 @@ public partial class MainWindow : Window
                 NextHeading();
 
         };
-        shortcutActions[Key.T] = (s, e) => createdControls["trim"].Focus();
-        shortcutActions[Key.B] = (s, e) => createdControls["pan"].Focus();
-        //shortcutActions[Key.G] = (s, e) => new GateToolWindow(_channel).ShowDialog();
+        shortcutActions[Key.T] = (s, e) => { if (createdControls.TryGetValue("trim", out var ctrl)) ctrl.Focus(); };
+        shortcutActions[Key.B] = (s, e) => { if (createdControls.TryGetValue("pan", out var ctrl)) ctrl.Focus(); };
+        shortcutActions[Key.G] = (s, e) => FocusSection("Gate");
 
         //DEBUG 
         //shortcutActions[Key.I] = (s, e) => blindViewModel.Mutegroup.AssignMutesToAGroup(0);
@@ -510,14 +516,7 @@ public partial class MainWindow : Window
         //shortcutActions[Key.O] = (s, e) => blindViewModel.Mutegroup.mutegroup1 = !blindViewModel.Mutegroup.mutegroup1;
 
 
-        //shortcutActions[Key.E] = (s, e) =>
-        //{
-        //	if (_channel is OutputDACBus)
-        //		new EQ6ToolWindow(_channel).ShowDialog();
-        //	else
-        //		new EQ4ToolWindow(_channel).ShowDialog();
-        //};
-        //shortcutActions[Key.A] = (s, e) => new SendsView(_channel, blindViewModel).ShowDialog();
+        shortcutActions[Key.E] = (s, e) => FocusSection("EQ");
         shortcutActions[Key.X] = async (s, e) =>
         {
             var channelIsOn = await ToggleBooleanParameter($"ch.{selectedChannel}.mix.on");
@@ -605,10 +604,34 @@ public partial class MainWindow : Window
                     Speech.SpeechManager.Say($"Phantom Power Off");
             }
         };
+
+        shortcutActions[Key.Home] = async (s, e) => await SelectChannel(0);
+        shortcutActions[Key.End] = async (s, e) => await SelectChannel(channelCount - 1);
+
+        shortcutActions[Key.C] = async (s, e) =>
+        {
+            var name = await GetChannelName(selectedChannel);
+            Speech.SpeechManager.Say($"Channel {selectedChannel + 1}, {name}");
+        };
+
+        shortcutActions[Key.D] = (s, e) => FocusSection("Compressor");
+        shortcutActions[Key.L] = (s, e) => FocusSection("Limiter");
+        shortcutActions[Key.P] = (s, e) => FocusSection("Preamp");
+        shortcutActions[Key.R] = (s, e) => FocusSection("Receives");
+        shortcutActions[Key.N] = (s, e) => FocusSection("Sends");
+        shortcutActions[Key.U] = (s, e) => FocusSection("Mute Groups");
     }
 
-    private void NextHeading()
+    private void FocusSection(string sectionName)
     {
+        if (_sectionHeadings.TryGetValue(sectionName, out var heading))
+        {
+            heading.Focus();
+            Keyboard.Focus(heading);
+        }
+    }
+
+    private void NextHeading()    {
         var current = Keyboard.FocusedElement as DependencyObject;
 
         int currentIndex = _headings.FindIndex(h => IsDescendantOf(current, h));
@@ -633,11 +656,12 @@ public partial class MainWindow : Window
 
     private async Task SelectChannel(int channel)
     {
-
         selectedChannel = channel;
         await BuildCurrentChannelControls();
         BuildCurrentChannelContextMenu();
-        Speech.SpeechManager.Say(await GetChannelName(selectedChannel));
+        var name = await GetChannelName(selectedChannel);
+        statusLabel.Content = $"Channel {selectedChannel + 1}: {name}";
+        Speech.SpeechManager.Say(name);
     }
 
     private async void BuildCurrentChannelContextMenu()
@@ -755,7 +779,7 @@ public partial class MainWindow : Window
 
     private void exitMenuItem_Click(object sender, RoutedEventArgs e)
     {
-
+        Application.Current.Shutdown();
     }
 
     private void LoadProjectMenuButton_Click(object sender, RoutedEventArgs e)
