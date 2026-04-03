@@ -672,7 +672,7 @@ public partial class MainWindow : Window
         return name ?? $"Channel {i + 1}";
     }
 
-    private async Task<CustomMenuItem> CreateMenuItem(ItemCollection parent, string path, string header, bool isCheckable = false, bool inverted = false)
+    private async Task<CustomMenuItem?> CreateMenuItem(ItemCollection parent, string path, string header, bool isCheckable = false, bool inverted = false)
     {
         var param = await _client.GetDefForPath(path);
 
@@ -737,10 +737,12 @@ public partial class MainWindow : Window
 
     async void ToggleMuteGroup(int num)
     {
-        string mutegroupName = (string)await _client.GetValue($"muteGroups.{num}.name");
-        bool state = false;
+        // API uses 0-based index; display name uses 1-based for user-friendliness
+        string mutegroupName = await _client.GetValue($"muteGroups.{num}.name") ?? $"Mute Group {num + 1}";
         string path = $"muteGroups.{num}.mute";
-        state = bool.Parse(await _client.GetValue(path));
+        var rawValue = await _client.GetValue(path);
+        if (!bool.TryParse(rawValue, out bool state))
+            return;
         state = !state;
         await _client.SendUpdate(path, state);
         Speech.SpeechManager.Say($"Mute group {mutegroupName} " + (state ? "Muted" : "Unmuted"));
