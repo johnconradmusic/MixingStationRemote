@@ -7,7 +7,7 @@
         mc:Ignorable="d" AutomationProperties.LiveSetting="Assertive"
         Title="ConnectionWindow" Height="450" Width="800" Loaded="Window_Loaded">
     <StackPanel>
-        <TextBox x:Name="txtStationUrl" IsReadOnly="True" Focusable="False" Text="http://localhost:8080" />
+        <TextBox x:Name="txtStationUrl" AutomationProperties.Name="Mixing Station URL" GotFocus="btn_GotFocus" LostFocus="txtStationUrl_LostFocus" Text="http://localhost:8080" />
         <!-- user types the mixing-station address -->
         <ComboBox x:Name="cmbModels" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Mixer Model ComboBox" DisplayMemberPath="name" IsEnabled="False" SelectionChanged="cmbModels_SelectionChanged"/>
         <Button x:Name="btnSearch" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Search Button" Content="Search" IsEnabled="False" Click="btnSearch_Click"/>
