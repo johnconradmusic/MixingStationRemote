@@ -20,14 +20,16 @@ public class ApiClient
     private const string DefaultBaseUrl = "http://localhost:8080/";
 
     private readonly HttpClient _httpClient = new();
-    private readonly ClientWebSocket _websocket = new();
+    private ClientWebSocket _websocket = new();
     private Task? _receiveLoop;
+    private Uri? _stationBaseUri;
 
     public ConsoleArchitecture ConsoleArchitecture { get; private set; }
 
     public void SetDiscoveryBase(string stationUrl)
     {
-        _httpClient.BaseAddress = new Uri(stationUrl.EndsWith("/") ? stationUrl : stationUrl + "/");
+        _stationBaseUri = new Uri(stationUrl.EndsWith("/") ? stationUrl : stationUrl + "/");
+        _httpClient.BaseAddress = _stationBaseUri;
     }
 
     public async Task<SupportedMixersRoot> GetSupportedMixerModels()
@@ -62,7 +64,9 @@ public class ApiClient
 
     public async Task Disconnect()
     {
-        await _httpClient.PostAsync("app/mixers/disconnect", null).ConfigureAwait(false);
+        await CloseWebsocket().ConfigureAwait(false);
+        using var response = await _httpClient.PostAsync("app/mixers/disconnect", null).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
         await Task.Delay(500);
     }
 
@@ -96,29 +100,80 @@ public class ApiClient
         if (_websocket.State == WebSocketState.Open)
             return;
 
+        if (_websocket.State is WebSocketState.Aborted or WebSocketState.Closed or WebSocketState.CloseReceived or WebSocketState.CloseSent)
+            _websocket = new ClientWebSocket();
+
         _cts = new CancellationTokenSource();
 
-        var baseAddress = _httpClient.BaseAddress ?? new Uri(DefaultBaseUrl);
-        var wsScheme = baseAddress.Scheme == "https" ? "wss" : "ws";
-        var wsUri = new Uri($"{wsScheme}://{baseAddress.Host}:{baseAddress.Port}");
-
-        await _websocket.ConnectAsync(wsUri, _cts.Token);
+        await _websocket.ConnectAsync(GetWebSocketUri(), _cts.Token);
         await Subscribe("*");
         _receiveLoop = Task.Run(() => ReceiveLoopAsync(_cts.Token), _cts.Token);
+    }
+
+    public async Task CloseWebsocket()
+    {
+        if (_cts != null)
+            await _cts.CancelAsync().ConfigureAwait(false);
+
+        if (_websocket.State == WebSocketState.Open || _websocket.State == WebSocketState.CloseReceived)
+        {
+            try
+            {
+                await _websocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnecting", CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (WebSocketException ex)
+            {
+                Debug.WriteLine($"Failed to close websocket cleanly: {ex.Message}");
+            }
+        }
+
+        _cts?.Dispose();
+        _cts = null;
+        _websocket.Dispose();
+        _websocket = new ClientWebSocket();
+    }
+
+    private Uri GetWebSocketUri()
+    {
+        var stationBaseUri = _stationBaseUri ?? _httpClient.BaseAddress ?? new Uri(DefaultBaseUrl);
+
+        var builder = new UriBuilder(stationBaseUri)
+        {
+            Scheme = stationBaseUri.Scheme == Uri.UriSchemeHttps ? "wss" : "ws",
+            Path = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty
+        };
+
+        return builder.Uri;
     }
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
     {
         if (_websocket == null)
             return;
 
-        while (!cancellationToken.IsCancellationRequested && _websocket.State == WebSocketState.Open)
+        try
         {
+            while (!cancellationToken.IsCancellationRequested && _websocket.State == WebSocketState.Open)
+            {
 
-            var message = await ReceiveFullTextMessageAsync(_websocket, cancellationToken).ConfigureAwait(false);
-            if (message == null)
-                break;
+                var message = await ReceiveFullTextMessageAsync(_websocket, cancellationToken).ConfigureAwait(false);
+                if (message == null)
+                    break;
 
-            ProcessWebSocketMessage(message);
+                ProcessWebSocketMessage(message);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (WebSocketException ex)
+        {
+            Debug.WriteLine($"Websocket receive loop ended: {ex.Message}");
+        }
+        catch (JsonException ex)
+        {
+            Debug.WriteLine($"Failed to process websocket message: {ex.Message}");
         }
     }
 

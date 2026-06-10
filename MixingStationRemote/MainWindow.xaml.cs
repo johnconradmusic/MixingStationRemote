@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     {
         _client = client;
         InitializeComponent();
+        Closed += MainWindow_Closed;
     }
     int channelCount;
     int selectedChannel;
@@ -33,24 +34,41 @@ public partial class MainWindow : Window
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        _client.ParameterUpdated += OnParameterValueUpdatedFromWs;
-        var mixer = await _client.GetCurrentMixer();
-        Title = mixer.currentModel + " - Mixing Station Remote";
+        try
+        {
+            _client.ParameterUpdated += OnParameterValueUpdatedFromWs;
+            var mixer = await _client.GetCurrentMixer();
+            Title = mixer.currentModel + " - Mixing Station Remote";
 
 
-        arc = await _client.GetConsoleArchitecture();
-        matrix = ChannelRoutingMatrixBuilder.Build(arc);
-        // Stay on UI thread after await, because you're building controls below
-        //	var defs = await _client.GetAllParametersWithDefinitions();
-        await _client.ConnectWebsocket();
+            arc = await _client.GetConsoleArchitecture();
+            matrix = ChannelRoutingMatrixBuilder.Build(arc);
+            // Stay on UI thread after await, because you're building controls below
+            //	var defs = await _client.GetAllParametersWithDefinitions();
+            await _client.ConnectWebsocket();
 
-        await Task.Delay(2500); //give some time for initial data to arrive, so we can group channels by number
+            await Task.Delay(2500); //give some time for initial data to arrive, so we can group channels by number
 
-        channelCount = arc.totalChannels;
-        selectedChannel = 0;
-        InitializeShortcuts();
+            channelCount = arc.totalChannels;
+            selectedChannel = 0;
+            InitializeShortcuts();
 
-        await SelectChannel(0);
+            await SelectChannel(0);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to initialize main window: {ex}");
+            MessageBox.Show(ex.Message, "Unable to open mixer", MessageBoxButton.OK, MessageBoxImage.Error);
+            _client.ParameterUpdated -= OnParameterValueUpdatedFromWs;
+            await _client.CloseWebsocket();
+            new ConnectionWindow().Show();
+            Close();
+        }
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _client.ParameterUpdated -= OnParameterValueUpdatedFromWs;
     }
 
     private readonly List<Control> _headings = new();

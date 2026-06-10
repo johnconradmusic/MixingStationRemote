@@ -1,18 +1,28 @@
-﻿<Window x:Class="MixingStationRemote.ConnectionWindow"
+<Window x:Class="MixingStationRemote.ConnectionWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MixingStationRemote"
         mc:Ignorable="d" AutomationProperties.LiveSetting="Assertive"
-        Title="ConnectionWindow" Height="450" Width="800" Loaded="Window_Loaded">
-    <StackPanel>
-        <TextBox x:Name="txtStationUrl" AutomationProperties.Name="Mixing Station URL" GotFocus="btn_GotFocus" LostFocus="txtStationUrl_LostFocus" Text="http://localhost:8080" />
-        <!-- user types the mixing-station address -->
-        <ComboBox x:Name="cmbModels" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Mixer Model ComboBox" DisplayMemberPath="name" IsEnabled="False" SelectionChanged="cmbModels_SelectionChanged"/>
-        <Button x:Name="btnSearch" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Search Button" Content="Search" IsEnabled="False" Click="btnSearch_Click"/>
-        <Button x:Name="btnRefresh" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Refresh Button" Content="Refresh Results" Click="btnRefresh_Click"/>
-        <ListBox x:Name="lstMixers" AutomationProperties.LiveSetting="Assertive"  AutomationProperties.Name="Mixer Search Results ListBox" DisplayMemberPath="name" SelectionChanged="cmbModels_SelectionChanged" />
-        <Button x:Name="btnConnect" IsDefault="True" AutomationProperties.LiveSetting="Assertive"  AutomationProperties.Name="Connect Button" Content="Connect" IsEnabled="False" Click="btnConnect_Click"/>
+        Title="ConnectionWindow" Height="520" Width="800" Loaded="Window_Loaded">
+    <StackPanel Margin="12">
+        <TextBox x:Name="txtStationUrl" AutomationProperties.Name="Mixing Station URL" GotFocus="Control_GotFocus" LostFocus="txtStationUrl_LostFocus" Text="http://localhost:8080" />
+        <TextBlock x:Name="txtConnectionStatus" AutomationProperties.LiveSetting="Assertive" TextWrapping="Wrap" Margin="0,8,0,8" />
+
+        <Label Content="Saved Mixers" Focusable="True" IsTabStop="True" GotFocus="Control_GotFocus"/>
+        <ListBox x:Name="lstSavedMixers" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Saved Mixers ListBox" DisplayMemberPath="DisplayName" MinHeight="100" SelectionChanged="lstSavedMixers_SelectionChanged" GotFocus="Control_GotFocus" />
+        <CheckBox x:Name="chkAutoConnect" AutomationProperties.Name="Connect selected saved mixer on startup CheckBox" Content="Connect selected saved mixer on startup" Checked="chkAutoConnect_Changed" Unchecked="chkAutoConnect_Changed" GotFocus="Control_GotFocus"/>
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,12">
+            <Button x:Name="btnConnectSaved" IsDefault="True" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Connect Saved Mixer Button" Content="Connect" IsEnabled="False" Click="btnConnectSaved_Click" GotFocus="Control_GotFocus"/>
+            <Button x:Name="btnForgetSaved" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Forget Saved Mixer Button" Content="Forget" IsEnabled="False" Click="btnForgetSaved_Click" Margin="8,0,0,0" GotFocus="Control_GotFocus"/>
+        </StackPanel>
+
+        <Label Content="Add Mixer" Focusable="True" IsTabStop="True" GotFocus="Control_GotFocus"/>
+        <ComboBox x:Name="cmbModels" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Mixer Model ComboBox" DisplayMemberPath="name" IsEnabled="False" SelectionChanged="cmbModels_SelectionChanged" GotFocus="Control_GotFocus"/>
+        <Button x:Name="btnSearch" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Search Button" Content="Search" IsEnabled="False" Click="btnSearch_Click" GotFocus="Control_GotFocus"/>
+        <Button x:Name="btnRefresh" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Refresh Results Button" Content="Refresh Results" Click="btnRefresh_Click" GotFocus="Control_GotFocus"/>
+        <ListBox x:Name="lstMixers" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Mixer Search Results ListBox" DisplayMemberPath="name" SelectionChanged="cmbModels_SelectionChanged" GotFocus="Control_GotFocus" />
+        <Button x:Name="btnSaveAndConnect" AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="Save And Connect Button" Content="Save and Connect" IsEnabled="False" Click="btnSaveAndConnect_Click" GotFocus="Control_GotFocus"/>
     </StackPanel>
 </Window>

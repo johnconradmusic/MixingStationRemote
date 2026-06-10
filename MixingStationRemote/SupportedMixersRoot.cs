@@ -18,5 +18,11 @@ public class ConsoleGroup
     public bool canSearch { get; set; }
     public string manufacturer { get; set; } = string.Empty;
     // add modelEnums, supportedHardwareModels etc. if needed later
+
+    public override string ToString()
+    {
+        var prefix = string.IsNullOrWhiteSpace(manufacturer) ? string.Empty : manufacturer + " ";
+        return $"{prefix}{name}".Trim();
+    }
 }
 

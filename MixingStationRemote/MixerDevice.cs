@@ -14,6 +14,14 @@ public int modelId { get;set;}
 	public string name { get; set; } = string.Empty;
 	public string model { get; set; } = string.Empty;
 	public string version { get; set; } = string.Empty;
+
+	public override string ToString()
+	{
+		var displayName = string.IsNullOrWhiteSpace(name) ? ip : name;
+		return string.IsNullOrWhiteSpace(model)
+			? $"{displayName} ({ip})"
+			: $"{displayName} - {model} ({ip})";
+	}
 }
 
 //{
